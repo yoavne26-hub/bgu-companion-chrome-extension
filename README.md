@@ -11,7 +11,7 @@ BGU Companion centralizes course access, student systems, and login autofill int
 
 ---
 
-## 🚀 Overview
+## Overview
 
 BGU Companion improves daily academic workflow by:
 
@@ -25,9 +25,9 @@ Built with a focus on security, clean UX, and real student needs.
 
 ---
 
-# 🖼 User Interface
+# User Interface
 
-## 🔹 Main Popup (Hub)
+## Main Popup (Hub)
 ![Popup Home](screenshots/popuphome.png)
 
 Central navigation panel providing access to:
@@ -38,21 +38,21 @@ Central navigation panel providing access to:
 
 ---
 
-## 🔹 Course Search Interface
+## Course Search Interface
 ![Popup Search](screenshots/popupcourse1.png)
 
 Search courses using partial matching (Hebrew / English supported).
 
 ---
 
-## 🔹 Course Opening Feedback
+## Course Opening Feedback
 ![Popup Opening](screenshots/popupcourse2.png)
 
 Real-time feedback when navigating to a course.
 
 ---
 
-## 🔹 Settings & Course Management
+## Settings & Course Management
 ![Popup Settings](screenshots/popupsettings.png)
 
 Includes:
@@ -65,7 +65,7 @@ Passwords are handled strictly by Chrome Password Manager.
 
 ---
 
-# 🔐 Secure Autofill System
+# Secure Autofill System
 
 The extension autofills:
 
@@ -73,19 +73,19 @@ The extension autofills:
 - 9-digit Student ID
 - Never touches passwords
 
-### 🔹 Gezer Login Autofill
+### Gezer Login Autofill
 ![Gezer Autofill](screenshots/popupgezer.png)
 
 ---
 
-### 🔹 Student Info Portal Autofill
+### Student Info Portal Autofill
 ![Student Info Autofill](screenshots/popupstudentinfo.png)
 
 Autofill logic uses heuristic input detection to safely identify ID and username fields.
 
 ---
 
-# 🧠 Moodle Inline Enhancement
+# Moodle Inline Enhancement
 
 The extension injects a search bar directly into Moodle pages.
 
