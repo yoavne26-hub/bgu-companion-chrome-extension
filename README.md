@@ -11,6 +11,91 @@ BGU Companion centralizes course access, student systems, and login autofill int
 
 ---
 
+## 🚀 Overview
+
+BGU Companion improves daily academic workflow by:
+
+- Instant Moodle course navigation
+- Inline course search inside Moodle
+- Quick shortcuts to Gezer (Exams) and Student Info systems
+- Secure autofill of username and student ID
+- Local storage persistence
+
+Built with a focus on security, clean UX, and real student needs.
+
+---
+
+# 🖼 User Interface
+
+## 🔹 Main Popup (Hub)
+![Popup Home](screenshots/popuphome.png)
+
+Central navigation panel providing access to:
+- Courses
+- Gezer (Tests)
+- Student Info
+- Settings
+
+---
+
+## 🔹 Course Search Interface
+![Popup Search](screenshots/popupcourse1.png)
+
+Search courses using partial matching (Hebrew / English supported).
+
+---
+
+## 🔹 Course Opening Feedback
+![Popup Opening](screenshots/popupcourse2.png)
+
+Real-time feedback when navigating to a course.
+
+---
+
+## 🔹 Settings & Course Management
+![Popup Settings](screenshots/popupsettings.png)
+
+Includes:
+- Secure autofill profile setup
+- Course CRUD management
+- Autofill toggle
+- Persistent local storage
+
+Passwords are handled strictly by Chrome Password Manager.
+
+---
+
+# 🔐 Secure Autofill System
+
+The extension autofills:
+
+- Username (before @)
+- 9-digit Student ID
+- Never touches passwords
+
+### 🔹 Gezer Login Autofill
+![Gezer Autofill](screenshots/popupgezer.png)
+
+---
+
+### 🔹 Student Info Portal Autofill
+![Student Info Autofill](screenshots/popupstudentinfo.png)
+
+Autofill logic uses heuristic input detection to safely identify ID and username fields.
+
+---
+
+# 🧠 Moodle Inline Enhancement
+
+The extension injects a search bar directly into Moodle pages.
+
+![Moodle Injection](screenshots/popupcourse4.png)
+
+Allows instant course navigation without returning to the popup.
+![Moodle Injection](screenshots/popupcourse5.png)
+
+---
+
 ## Core Features
 
 ### 1. Quick Access Hub (Popup UI)
