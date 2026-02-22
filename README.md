@@ -1,68 +1,104 @@
 # BGU Companion – Chrome Extension
 
-A productivity-focused Chrome extension designed to simplify and accelerate access to university systems, course portals, and frequently used academic resources.
+A productivity-focused Chrome extension designed for BGU students.
+
+BGU Companion centralizes course access, student systems, and login autofill into a single lightweight browser extension.
 
 ---
 
-## Problem
+## Core Features
 
-Students frequently navigate between multiple university platforms (Moodle, course systems, information portals, etc.).  
-This creates friction, wasted time, and cognitive load.
-
-BGU Companion centralizes these resources into a single lightweight browser extension interface.
-
----
-
-## Features
-
-- Quick access to university systems
-- Course-specific shortcuts
-- Frequently used website bookmarks
-- Clean popup-based UI
-- Lightweight and fast loading
+### 1. Quick Access Hub (Popup UI)
+- Courses search with intelligent matching
+- Direct links to:
+  - Moodle
+  - Gezer (Exams)
+  - Student Info system
+- Clean multi-view interface
 
 ---
 
-## Tech Stack
+### 2. Persistent Course Management
+- Local storage of custom course links
+- Add / update / delete courses
+- Automatic seeding of default BGU courses
+- Sorted rendering
 
-- JavaScript
-- HTML / CSS
-- Chrome Extension API
-- Local storage handling
+---
+
+### 3. Secure Autofill (No Password Storage)
+- Autofills:
+  - Username (before @)
+  - 9-digit student ID
+- Works on:
+  - Moodle
+  - Gezer
+  - Student Info portal
+- Password handled only by Chrome Password Manager
+
+---
+
+### 4. Inline Moodle Enhancement
+
+Injects a course search bar directly into Moodle pages, allowing instant navigation without leaving the page.
 
 ---
 
 ## Architecture
 
-- `manifest.json` – Extension configuration
-- `popup.html` – UI layout
-- `popup.js` – Logic & event handling
-- `styles.css` – UI styling
+- manifest.json – Extension configuration (Manifest V3)
+- popup.html / popup.js – Main hub interface
+- options.html / options.js – Settings + profile management
+- content.js – Autofill logic + Moodle UI injection
+- popup.css – UI styling
 
 ---
 
-## How to Install (Development Mode)
+## Technical Highlights
+
+- Chrome Extension Manifest V3
+- chrome.storage.local persistence
+- Content script DOM analysis
+- Heuristic-based input detection for autofill
+- Dynamic UI injection into third-party pages
+- Event-driven UI state switching
+
+---
+
+## Permissions Used
+
+- tabs
+- storage
+
+Used strictly for:
+- Opening external systems
+- Storing user preferences
+
+---
+
+## Installation (Developer Mode)
 
 1. Open Chrome → Extensions
-2. Enable "Developer Mode"
+2. Enable Developer Mode
 3. Click "Load unpacked"
 4. Select the project folder
 
 ---
 
-## Future Improvements
+## What This Project Demonstrates
 
-- User customization for shortcuts
-- Sync across devices
-- Dark mode theme
-- Integration with course schedule APIs
+- Product-oriented thinking
+- Frontend UI development
+- Browser API integration
+- Secure data handling practices
+- DOM inspection and automation logic
+- Practical system design for real users
 
 ---
 
-## Purpose
+## Future Improvements
 
-This project demonstrates:
-- Frontend development
-- UI/UX thinking
-- Product-driven development
-- Practical browser extension engineering
+- Cross-device sync
+- Theme customization
+- Course grouping
+- Analytics dashboard for usage tracking
