@@ -6,6 +6,11 @@ BGU Companion centralizes course access, student systems, and login autofill int
 
 ---
 
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue)
+![Manifest](https://img.shields.io/badge/Manifest-V3-success)
+
+---
+
 ## Core Features
 
 ### 1. Quick Access Hub (Popup UI)
@@ -75,13 +80,27 @@ Used strictly for:
 - Storing user preferences
 
 ---
+## Installation
 
-## Installation (Developer Mode)
+### Option A — Install from ZIP (Recommended)
+1. Download the latest release ZIP from the **Releases** section.
+2. Extract the ZIP to a folder on your computer.
+3. Open Chrome and go to `chrome://extensions/`
+4. Enable **Developer mode** (top right).
+5. Click **Load unpacked**.
+6. Select the extracted folder (the one that contains `manifest.json`).
 
-1. Open Chrome → Extensions
-2. Enable Developer Mode
-3. Click "Load unpacked"
-4. Select the project folder
+### Option B — Install from Source (GitHub)
+1. Click **Code → Download ZIP** (or clone the repo).
+2. Extract the project folder.
+3. Go to `chrome://extensions/` → enable **Developer mode**
+4. Click **Load unpacked** → select the folder containing `manifest.json`
+---
+## Privacy & Data
+
+- The extension stores course links and profile preferences locally using `chrome.storage.local`.
+- **Passwords are never stored** (Chrome Password Manager handles passwords).
+- No data is sent to external servers.
 
 ---
 
