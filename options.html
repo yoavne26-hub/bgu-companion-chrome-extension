@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BGU Companion — Settings</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+
+<body class="options">
+  <div class="container">
+    <header class="topbar">
+      <div class="topbar-title">BGU Companion — Settings</div>
+      <div class="topbar-spacer"></div>
+    </header>
+
+    <div class="options-grid">
+      <!-- Left column: Profile + Add Course -->
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Profile -->
+        <section class="card">
+          <div class="subtitle">Profile (Autofill)</div>
+
+          <div class="search" style="flex-direction: column;">
+            <input id="usernameShort" type="text" placeholder="Username (before @)  e.g., giborgib" />
+            <input id="studentId" type="text" inputmode="numeric" maxlength="9" placeholder="Student ID (9 digits)" />
+          </div>
+
+          <label style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+            <input id="autofillEnabled" type="checkbox" />
+            <span style="font-weight:800;">Enable autofill on BGU sites</span>
+          </label>
+
+          <button id="saveProfileBtn" class="big-btn" type="button" style="margin-top:10px;">Save Profile</button>
+          <div id="profileStatus" class="message" role="status"></div>
+
+          <div class="hint" style="margin-top:8px;">
+            Password is handled by Chrome Password Manager (we do not store it).
+          </div>
+        </section>
+
+        <!-- Add Course -->
+        <section class="card">
+          <div class="subtitle">Add Course</div>
+
+          <div class="search" style="flex-direction: column;">
+            <input id="courseName" type="text" placeholder="Course name (Heb/Eng)" />
+            <input id="courseUrl" type="url" placeholder="Course link (https://...)" />
+          </div>
+
+          <button id="addCourseBtn" class="big-btn" type="button">Add / Update</button>
+          <div id="status" class="message" role="status"></div>
+        </section>
+      </div>
+
+      <!-- Right column: Courses table -->
+      <section class="card">
+        <div class="subtitle">Courses</div>
+
+        <div class="table-wrap">
+          <table class="courses-table">
+            <thead>
+              <tr>
+                <th style="width: 32%;">Name</th>
+                <th>Link</th>
+                <th style="width: 120px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="courseTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

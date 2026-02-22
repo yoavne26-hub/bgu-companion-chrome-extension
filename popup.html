@@ -1,0 +1,39 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BGU Companion</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="topbar">
+      <button id="btnBack" class="icon-btn" type="button" aria-label="Back" hidden>&larr;</button>
+      <div class="topbar-title" id="titleText">BGU Companion</div>
+      <div class="topbar-spacer"></div>
+    </header>
+
+    <section id="view-main" data-view="main" class="view">
+      <div class="card">
+        <button id="btnCourses" type="button" class="big-btn">Courses</button>
+        <button id="btnGezer" type="button" class="big-btn">Gezer (Tests)</button>
+        <button id="btnInfo" type="button" class="big-btn">Student Info</button>
+        <button id="btnSettings" type="button" class="big-btn">Settings</button>
+      </div>
+      <p class="hint">Quick hub for Moodle + student systems.</p>
+    </section>
+
+    <section id="view-courses" data-view="courses" class="view" hidden>
+      <h2 class="subtitle">Courses</h2>
+      <div class="search">
+        <input id="searchInput" type="text" placeholder="Search courses" aria-label="Search courses" autofocus />
+        <button id="searchBtn" type="button">Open</button>
+      </div>
+      <div id="message" class="message" role="status"></div>
+      <ul id="results" class="results" aria-live="polite"></ul>
+    </section>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

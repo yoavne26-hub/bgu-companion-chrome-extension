@@ -1,0 +1,218 @@
+﻿* { box-sizing: border-box; }
+body {
+  width: 320px;
+  min-height: 200px;
+  margin: 0;
+  padding: 16px;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background: radial-gradient(900px 300px at 15% 0%, #f7dcc4, transparent 60%),
+            radial-gradient(900px 300px at 85% 0%, #f0b98f, transparent 55%),
+            #f3c7a2;
+
+  color: #0f172a;
+}
+.container { display: flex; flex-direction: column; gap: 12px; }
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0a0f1c;
+}
+.search { display: flex; gap: 8px; }
+.search input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.search button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+.search button:hover { background: #1d4ed8; }
+.results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.results li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+.results .course-name { font-weight: 600; }
+.results button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #0ea5e9;
+  color: white;
+  cursor: pointer;
+}
+.results button:hover { background: #0284c7; }
+.message { min-height: 18px; font-size: 13px; color: #475569; }
+.message.error { color: #b91c1c; }
+.message.success { color: #15803d; }
+
+/* Multi-screen layout */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.topbar-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0a0f1c;
+}
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.icon-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
+
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+.big-btn {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.big-btn:hover { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
+
+.subtitle {
+  margin: 4px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.hint {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ===== Options page (settings) layout overrides ===== */
+body.options {
+  width: auto;
+  min-height: 100vh;
+  padding: 22px;
+}
+
+body.options .container {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 920px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+}
+
+.courses-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.courses-table th,
+.courses-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(231,238,252,0.10);
+  vertical-align: top;
+}
+
+.courses-table th {
+  text-align: left;
+  font-weight: 900;
+  color: var(--muted);
+  background: rgba(255,255,255,0.05);
+}
+
+.courses-table tr:last-child td {
+  border-bottom: none;
+}
+
+.course-link {
+  display: inline-block;
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent-2);
+  text-decoration: none;
+}
+
+.course-link:hover {
+  text-decoration: underline;
+}
+
+.small-btn {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.small-btn:hover {
+  background: rgba(255,255,255,0.10);
+}
+

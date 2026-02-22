@@ -1,0 +1,29 @@
+﻿{
+  "manifest_version": 3,
+  "name": "BGU Companion",
+  "description": "BGU student companion: quick Moodle course access + shortcuts to Gezer and student systems.",
+  "version": "1.0.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "BGU Companion"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["tabs", "storage"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://moodle.bgu.ac.il/moodle/*",
+        "https://gezer1.bgu.ac.il/*",
+        "https://bgu4u22.bgu.ac.il/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
