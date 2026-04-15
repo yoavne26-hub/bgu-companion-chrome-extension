@@ -1,18 +1,6 @@
-<<<<<<< HEAD
 const STORAGE_COURSES_KEY = "courses";
 const STORAGE_PROFILE_KEY = "userProfile";
 
-=======
-// ===============================
-// BGU Companion — content script
-// - Moodle: inline course search (uses storage courses)
-// - Moodle/Gezer/Info: autofill username + 9-digit ID (no password)
-// ===============================
-
-const STORAGE_COURSES_KEY = "courses";
-const STORAGE_PROFILE_KEY = "userProfile";
-
-// Default seed database (courses) in case storage is empty
 const DEFAULT_COURSES = {
   "גורמי אנוש": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61297",
   "קבלת החלטות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61296",
@@ -46,8 +34,6 @@ const DEFAULT_COURSES = {
   "מבוא לחשבונאות פיננסית וניהולית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49107"
 };
 
->>>>>>> b1d6382aa2bace02e76aba3ff422637dcfca664d
-// ---------- storage helpers ----------
 async function getCourses() {
   const data = await chrome.storage.local.get(STORAGE_COURSES_KEY);
   return data[STORAGE_COURSES_KEY] || {};
@@ -71,7 +57,6 @@ async function getProfile() {
   return data[STORAGE_PROFILE_KEY] || null;
 }
 
-// ---------- small utilities ----------
 function fireInputEvents(el) {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -86,7 +71,6 @@ function setIfEmpty(el, value) {
   return true;
 }
 
-// ---------- AUTOFILL ----------
 function findUsernameField() {
   const candidates = [
     'input[name="username"]',
@@ -107,24 +91,21 @@ function findUsernameField() {
 function normText(s) {
   return (s || "")
     .replace(/\s+/g, " ")
-    .replace(/[״”“"]/g, '"')
+    .replace(/[״"""]/g, '"')
     .trim()
     .toLowerCase();
 }
 
 function labelTextForInput(input) {
-  // 1) <label for="...">
   const id = input.getAttribute("id");
   if (id) {
     const lbl = document.querySelector(`label[for="${CSS.escape(id)}"]`);
     if (lbl) return normText(lbl.textContent);
   }
 
-  // 2) <label> ... <input> ... </label>
   const parentLabel = input.closest("label");
   if (parentLabel) return normText(parentLabel.textContent);
 
-  // 3) aria-label / aria-labelledby
   const ariaLabel = input.getAttribute("aria-label");
   if (ariaLabel) return normText(ariaLabel);
 
@@ -150,7 +131,6 @@ function inputHintText(input) {
 }
 
 function looksLikeIdLabel(text) {
-  // Add/adjust terms as you see in the HTML
   return (
     text.includes("ת.ז") ||
     text.includes("ת״ז") ||
@@ -169,28 +149,23 @@ function isFillableInput(input) {
   if (!input) return false;
   if (input.disabled || input.readOnly) return false;
   const type = (input.getAttribute("type") || "").toLowerCase();
-  // Ignore password fields obviously
   if (type === "password") return false;
-  // Most ID fields are text/number/tel
   return type === "" || type === "text" || type === "tel" || type === "number" || type === "email";
 }
 
 function findIdField() {
   const inputs = Array.from(document.querySelectorAll("input")).filter(isFillableInput);
 
-  // Pass 1: match by LABEL text (best signal)
   for (const input of inputs) {
     const lblText = labelTextForInput(input);
     if (looksLikeIdLabel(lblText)) return input;
   }
 
-  // Pass 2: match by placeholder / name / id / aria-label hints
   for (const input of inputs) {
     const hint = inputHintText(input);
     if (looksLikeIdLabel(hint)) return input;
   }
 
-  // Pass 3: fallback to maxlength=9 or pattern hint
   const byMaxLen = inputs.find((i) => {
     const ml = i.maxLength || Number(i.getAttribute("maxlength")) || 0;
     const pattern = normText(i.getAttribute("pattern"));
@@ -200,7 +175,6 @@ function findIdField() {
 
   return null;
 }
-
 
 async function tryAutofill() {
   const profile = await getProfile();
@@ -217,15 +191,12 @@ async function tryAutofill() {
   if (studentId) setIfEmpty(idEl, studentId);
 }
 
-
-// Run autofill on load + after small delay (pages that render late)
 function scheduleAutofill() {
   tryAutofill();
   setTimeout(tryAutofill, 600);
   setTimeout(tryAutofill, 1500);
 }
 
-// ---------- Moodle inline course search ----------
 async function findCourse(query) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return null;
@@ -314,11 +285,9 @@ function attachInlineSearch() {
   target.appendChild(wrapper);
 }
 
-// ---------- Main ----------
 function run() {
   scheduleAutofill();
 
-  // Moodle-only UI injection
   if (location.hostname === "moodle.bgu.ac.il") {
     attachInlineSearch();
   }
@@ -329,4 +298,3 @@ if (document.readyState === "loading") {
 } else {
   run();
 }
-// ---------- End of content.js ----------
