@@ -2,14 +2,8 @@ const GEZER_URL = "https://gezer1.bgu.ac.il/meser/hlogin.php";
 const INFO_URL =
   "https://bgu4u22.bgu.ac.il/apex/10g/r/f_login1004/login_desktop?p_lang=he";
 
-<<<<<<< HEAD
 const STORAGE_KEY = "courses";
 
-=======
-// Storage key used by options.js
-const STORAGE_KEY = "courses";
-
-// Initial database (seed) of course links
 const courseLinks = {
   "גורמי אנוש": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61297",
   "קבלת החלטות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61296",
@@ -49,11 +43,8 @@ const courseLinks = {
     "https://moodle.bgu.ac.il/moodle/course/view.php?id=49107"
 };
 
-// Seed snapshot (don’t mutate this)
->>>>>>> b1d6382aa2bace02e76aba3ff422637dcfca664d
 const DEFAULT_COURSES = { ...courseLinks };
 
-// ---------- Elements ----------
 const btnBack = document.getElementById("btnBack");
 const btnCourses = document.getElementById("btnCourses");
 const btnGezer = document.getElementById("btnGezer");
@@ -66,7 +57,6 @@ const searchBtn = document.getElementById("searchBtn");
 const messageEl = document.getElementById("message");
 const btnSettings = document.getElementById("btnSettings");
 
-// ---------- UI helpers ----------
 function setMessage(text, type = "") {
   if (!messageEl) return;
   messageEl.textContent = text;
@@ -100,7 +90,6 @@ function openCourse(url, name) {
   });
 }
 
-// ---------- Storage helpers ----------
 async function getCourses() {
   const data = await chrome.storage.local.get(STORAGE_KEY);
   return data[STORAGE_KEY] || {};
@@ -113,7 +102,6 @@ async function setCourses(courses) {
 async function getCoursesWithSeed() {
   let courses = await getCourses();
 
-  // Seed defaults if empty
   if (Object.keys(courses).length === 0) {
     courses = { ...DEFAULT_COURSES };
     await setCourses(courses);
@@ -122,7 +110,6 @@ async function getCoursesWithSeed() {
   return courses;
 }
 
-// ---------- Search logic ----------
 async function findCourse(query) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return null;
@@ -149,7 +136,6 @@ async function handleSearch() {
   openCourse(url, name);
 }
 
-// ---------- Events ----------
 if (btnSettings) {
   btnSettings.addEventListener("click", () => {
     const url = chrome.runtime.getURL("options.html");
@@ -172,14 +158,14 @@ if (searchInput) {
 
 if (btnCourses) {
   btnCourses.addEventListener("click", () => {
-    setMessage(""); // clear previous message
+    setMessage("");
     setView("courses");
   });
 }
 
 if (btnBack) {
   btnBack.addEventListener("click", () => {
-    setMessage(""); // clear previous message
+    setMessage("");
     setView("main");
   });
 }
@@ -192,11 +178,8 @@ if (btnInfo) {
   btnInfo.addEventListener("click", () => openExternal(INFO_URL));
 }
 
-// ---------- Init ----------
 setView("main");
 
-// Optional: seed early so popup is instantly ready
 getCoursesWithSeed().catch(() => {
-  // if storage permission missing, this will fail; message helps debug
   setMessage("Storage permission missing. Add 'storage' to manifest.", "error");
 });
