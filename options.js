@@ -1,38 +1,10 @@
 const STORAGE_COURSES_KEY = "courses";
 const STORAGE_PROFILE_KEY = "userProfile";
-
-const DEFAULT_COURSES = {
-  "גורמי אנוש": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61297",
-  "קבלת החלטות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61296",
-  "רגרסיה לינארית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62506",
-  "ניתוח ועיצוב מערכות מידע": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62675",
-  "סימולציה": "https://moodle.bgu.ac.il/moodle/course/view.php?id=60482",
-  "הנדסת חשמל": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62514",
-  "תכנון ופיקוח על ייצור 2": "https://moodle.bgu.ac.il/moodle/course/view.php?id=59568",
-  "הנדסת מכונות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=59562",
-  "בסיסי נתונים": "https://moodle.bgu.ac.il/moodle/course/view.php?id=57627",
-  "חקר ביצועים": "https://moodle.bgu.ac.il/moodle/course/view.php?id=57107",
-  "אלגברה לינארית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49403",
-  "חדוא 1": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49406",
-  "יסודות מערכות מידע": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54012",
-  "פתמע": "https://moodle.bgu.ac.il/moodle/course/view.php?id=57105",
-  "תכנון ופיקוח על ייצור 2 (תפי 2)": "https://moodle.bgu.ac.il/moodle/course/view.php?id=59568",
-  "חוויה מוזיקלית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62465",
-  "סדנת מיומנויות בין אישית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62672",
-  "כלכלה": "https://moodle.bgu.ac.il/moodle/course/view.php?id=60047",
-  "פיזיקה 2ב": "https://moodle.bgu.ac.il/moodle/course/view.php?id=58569",
-  "שיטות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=59566",
-  "פיזיקה 1ב": "https://moodle.bgu.ac.il/moodle/course/view.php?id=55048",
-  "אלגוריתמים": "https://moodle.bgu.ac.il/moodle/course/view.php?id=55007",
-  "תכנון ופיקוח על ייצור 1 (תפי 1)": "https://moodle.bgu.ac.il/moodle/course/view.php?id=57106",
-  "משוואות דיפרנציאליות רגילות / מישדיפ": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54013",
-  "מבוא לתכנות / תכנות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54082",
-  "מבוא להסתברות / הסתברות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54009",
-  "חדוא 2": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54008",
-  "גרפיקה הנדסית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54010",
-  "דיסקרטית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=51130",
-  "מבוא לחשבונאות פיננסית וניהולית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49107"
-};
+const DEFAULT_PROFILE = Object.freeze({
+  usernameShort: "",
+  studentId: "",
+  autofillEnabled: true
+});
 
 const courseName = document.getElementById("courseName");
 const courseUrl = document.getElementById("courseUrl");
@@ -83,11 +55,7 @@ async function setCourses(courses) {
 
 async function getProfile() {
   const data = await chrome.storage.local.get(STORAGE_PROFILE_KEY);
-  return data[STORAGE_PROFILE_KEY] || {
-    usernameShort: "",
-    studentId: "",
-    autofillEnabled: true
-  };
+  return { ...DEFAULT_PROFILE, ...(data[STORAGE_PROFILE_KEY] || {}) };
 }
 
 async function setProfile(profile) {
@@ -177,7 +145,7 @@ saveProfileBtn.addEventListener("click", async () => {
 (async function init() {
   let courses = await getCourses();
   if (Object.keys(courses).length === 0) {
-    courses = { ...DEFAULT_COURSES };
+    courses = { ...globalThis.DEFAULT_COURSES };
     await setCourses(courses);
   }
   renderCourses(courses);

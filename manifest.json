@@ -18,14 +18,18 @@
   "host_permissions": [
     "https://moodle.bgu.ac.il/*",
     "https://gezer1.bgu.ac.il/*",
-    "https://bgu4u22.bgu.ac.il/*"
+    "https://bgu4u22.bgu.ac.il/*",
+    "https://bgu4u.bgu.ac.il/*",
+    "https://portal.bgu.ac.il/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://moodle.bgu.ac.il/moodle/*",
         "https://gezer1.bgu.ac.il/*",
-        "https://bgu4u22.bgu.ac.il/*"
+        "https://bgu4u22.bgu.ac.il/*",
+        "https://bgu4u.bgu.ac.il/*",
+        "https://portal.bgu.ac.il/*"
       ],
       "js": ["courses-data.js", "content.js"],
       "run_at": "document_idle"

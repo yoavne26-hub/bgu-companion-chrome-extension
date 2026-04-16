@@ -1,4 +1,4 @@
-const DEFAULT_COURSES = {
+globalThis.DEFAULT_COURSES = {
   "גורמי אנוש": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61297",
   "קבלת החלטות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61296",
   "רגרסיה לינארית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62506",

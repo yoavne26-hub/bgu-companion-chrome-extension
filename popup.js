@@ -1,54 +1,15 @@
 const GEZER_URL = "https://gezer1.bgu.ac.il/meser/hlogin.php";
 const INFO_URL =
   "https://bgu4u22.bgu.ac.il/apex/10g/r/f_login1004/login_desktop?p_lang=he";
+const PORTAL_URL = "https://portal.bgu.ac.il/public/login";
 
 const STORAGE_KEY = "courses";
-
-const courseLinks = {
-  "גורמי אנוש": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61297",
-  "קבלת החלטות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=61296",
-  "רגרסיה לינארית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62506",
-  "ניתוח ועיצוב מערכות מידע": "https://moodle.bgu.ac.il/moodle/course.view.php?id=62675",
-  "סימולציה": "https://moodle.bgu.ac.il/moodle/course/view.php?id=60482",
-  "הנדסת חשמל": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62514",
-  "תכנון ופיקוח על ייצור 2": "https://moodle.bgu.ac.il/moodle/course/view.php?id=59568",
-  "הנדסת מכונות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=59562",
-  "בסיסי נתונים": "https://moodle.bgu.ac.il/moodle/course/view.php?id=57627",
-  "חקר ביצועים": "https://moodle.bgu.ac.il/moodle/course/view.php?id=57107",
-  "אלגברה לינארית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49403",
-  "חדוא 1": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49406",
-  "יסודות מערכות מידע": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54012",
-  "פתמע": "https://moodle.bgu.ac.il/moodle/course/view.php?id=57105",
-  "תכנון ופיקוח על ייצור 2 (תפי 2)":
-    "https://moodle.bgu.ac.il/moodle/course/view.php?id=59568",
-  "חוויה מוזיקלית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=62465",
-  "סדנת מיומנויות בין אישית":
-    "https://moodle.bgu.ac.il/moodle/course/view.php?id=62672",
-  "כלכלה": "https://moodle.bgu.ac.il/moodle/course/view.php?id=60047",
-  "פיזיקה 2ב": "https://moodle.bgu.ac.il/moodle/course/view.php?id=58569",
-  "שיטות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=59566",
-  "פיזיקה 1ב": "https://moodle.bgu.ac.il/moodle/course/view.php?id=55048",
-  "אלגוריתמים": "https://moodle.bgu.ac.il/moodle/course/view.php?id=55007",
-  "תכנון ופיקוח על ייצור 1 (תפי 1)":
-    "https://moodle.bgu.ac.il/moodle/course/view.php?id=57106",
-  "משוואות דיפרנציאליות רגילות / מישדיפ":
-    "https://moodle.bgu.ac.il/moodle/course/view.php?id=54013",
-  "מבוא לתכנות / תכנות": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54082",
-  "מבוא להסתברות / הסתברות":
-    "https://moodle.bgu.ac.il/moodle/course/view.php?id=54009",
-  "חדוא 2": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54008",
-  "גרפיקה הנדסית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54010",
-  "דיסקרטית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=51130",
-  "מבוא לחשבונאות פיננסית וניהולית":
-    "https://moodle.bgu.ac.il/moodle/course/view.php?id=49107"
-};
-
-const DEFAULT_COURSES = { ...courseLinks };
 
 const btnBack = document.getElementById("btnBack");
 const btnCourses = document.getElementById("btnCourses");
 const btnGezer = document.getElementById("btnGezer");
 const btnInfo = document.getElementById("btnInfo");
+const btnPortal = document.getElementById("btnPortal");
 const titleText = document.getElementById("titleText");
 const viewMain = document.getElementById("view-main");
 const viewCourses = document.getElementById("view-courses");
@@ -103,7 +64,7 @@ async function getCoursesWithSeed() {
   let courses = await getCourses();
 
   if (Object.keys(courses).length === 0) {
-    courses = { ...DEFAULT_COURSES };
+    courses = { ...globalThis.DEFAULT_COURSES };
     await setCourses(courses);
   }
 
@@ -176,6 +137,10 @@ if (btnGezer) {
 
 if (btnInfo) {
   btnInfo.addEventListener("click", () => openExternal(INFO_URL));
+}
+
+if (btnPortal) {
+  btnPortal.addEventListener("click", () => openExternal(PORTAL_URL));
 }
 
 setView("main");
