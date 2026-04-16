@@ -35,8 +35,8 @@ The popup is the main hub for:
 
 - Courses
 - Gezer
-- `מידע אישי`
-- `פורטל`
+- Student Info
+- Portal
 - Settings
 
 ---
