@@ -31,7 +31,7 @@ function setView(viewName) {
   if (btnBack) btnBack.hidden = isMain;
 
   if (titleText) {
-    titleText.textContent = isMain ? "BGU Companion" : "BGU Companion — Courses";
+    titleText.textContent = isMain ? "BGU Companion" : "BGU Companion Courses";
   }
 
   if (!isMain && searchInput) searchInput.focus();
