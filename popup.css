@@ -263,8 +263,15 @@ body.options {
   background: linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%);
   border-radius: 0;
   overflow: visible;
+  clip-path: none;
   border: none;
   box-shadow: none;
+}
+
+html:has(body.options) {
+  background: linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%);
+  border-radius: 0;
+  overflow: visible;
 }
 
 body.options .popup-shell {
