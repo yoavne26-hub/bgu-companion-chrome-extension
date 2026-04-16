@@ -1,132 +1,220 @@
-# BGU Companion - Chrome Extension
+# BGU Companion
 
-A productivity-focused Chrome extension for BGU students.
+A Chrome extension built for Ben-Gurion University students who want faster access to the systems they use every day.
 
-BGU Companion centralizes course access, student systems, and secure login autofill into a single lightweight extension built for daily academic use.
-
----
+BGU Companion brings saved course navigation, quick links to student systems, secure autofill for username and 9-digit ID, and an on-page save widget into one lightweight extension. The goal is simple: remove repetitive clicks, reduce friction between BGU systems, and make routine academic browsing feel faster and cleaner.
 
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-success)
-![Release](https://img.shields.io/badge/Release-1.1-orange)
+![Release](https://img.shields.io/badge/Release-1.1.0-orange)
 
 ---
 
-## Overview
+## Why This Extension Exists
 
-BGU Companion improves the student workflow by providing:
+Students constantly jump between Moodle, Gezer, Student Info, and the BGU portal. In practice, that usually means:
 
-- Fast popup-based navigation to saved courses
-- Quick shortcuts to Gezer, Student Info, Portal, and Settings
-- A floating save widget for supported BGU pages
-- Secure autofill of username and 9-digit student ID
-- Persistent local storage for saved pages and profile preferences
+- searching for the same courses again and again
+- manually reopening system pages from bookmarks or old tabs
+- retyping the same username and 9-digit ID on login pages
+- losing useful course links because saving them is inconvenient
 
-The extension never stores passwords. Passwords remain handled only by Chrome Password Manager.
+BGU Companion solves those problems with a focused set of features that are designed around real daily use, not around a generic browser extension template.
 
 ---
 
-## User Interface
+## What BGU Companion Does
+
+- Opens saved courses and pages directly from a compact popup
+- Provides quick shortcuts to Gezer, Student Info, the student portal, and settings
+- Stores course/page links locally in a simple name-to-URL structure
+- Autofills username and 9-digit student ID on supported BGU systems
+- Adds a floating save widget to supported pages so links can be saved directly from the page
+- Detects when a page is already saved and reflects that state immediately
+
+Passwords are never stored by the extension. Chrome Password Manager remains the only password handler.
+
+---
+
+## Product Tour
 
 ## Main Popup
-![Popup Home](screenshots/popuphome.png)
+![Main Popup](screenshots/popup-home-v11.png)
 
-The popup is the main hub for:
+The popup is the main entry point to the extension. It is designed as a compact hub that gives immediate access to the most common BGU destinations:
 
 - Courses
 - Gezer
 - Student Info
-- Portal
+- Student Portal
 - Settings
 
+The popup was visually refreshed in v1.1 with a more polished rounded layout, softer chrome, updated icons, and a cleaner blue/orange visual identity.
+
+You can still use the existing screenshot if you prefer:
+
+![Main Popup Legacy](screenshots/popuphome.png)
+
 ---
 
-## Course Search
-![Popup Search](screenshots/popupcourse1.png)
+## Course Search In The Popup
+![Course Search Popup](screenshots/popup-courses-view-v11.png)
 
-Search saved courses/pages using partial matching and open them directly from the popup.
+The popup includes a dedicated course search view for fast access to saved pages. Students can type part of a course name and open the saved link immediately without manually browsing Moodle menus.
 
----
+This is especially useful when:
 
-## Course Opening Feedback
-![Popup Opening](screenshots/popupcourse2.png)
+- a course has already been saved once and just needs to be reopened
+- the same course is used every week
+- a student wants one consistent place to open saved academic pages from
 
-The popup shows immediate feedback when a saved course/page is being opened.
+Existing search screenshots can still be used as well:
+
+![Popup Search Legacy](screenshots/popupcourse1.png)
+![Popup Search Feedback Legacy](screenshots/popupcourse2.png)
 
 ---
 
 ## Settings And Course Management
-![Settings Page](screenshots/popupsettings.png)
+![Settings Page](screenshots/settings-v11.png)
 
-The settings page includes:
+The settings page is the control center for the extension. It includes two major responsibilities:
 
-- Autofill profile setup
-- 9-digit student ID configuration
-- Autofill toggle
-- Course/page add, update, and delete
-- Persistent local storage
+1. Managing the autofill profile
+2. Managing saved courses/pages
 
-The page layout was updated in v1.1 to use the full width more cleanly and avoid the old table overflow behavior.
+Students can configure:
+
+- username
+- 9-digit student ID
+- autofill enabled or disabled
+
+They can also:
+
+- add a new course/page manually
+- update an existing saved entry
+- delete saved links they no longer need
+- review all saved links in one place
+
+The settings page layout was redesigned to use the full page width more effectively and to avoid the earlier horizontal overflow issues that made the courses table harder to use.
+
+You can keep the original screenshot reference if needed:
+
+![Settings Legacy](screenshots/popupsettings.png)
+
+---
+
+## Floating Save Widget
+
+One of the main additions in v1.1 is the floating save widget that appears directly on supported BGU pages.
+
+Instead of opening settings and copying a URL manually, the user can save the current page from the page itself.
+
+### Save State
+![Save Widget - Save State](screenshots/savewidget-save-state.png)
+
+When the current relevant page is not yet stored, the widget appears in its active save state:
+
+- orange button
+- clickable
+- visually active
+
+This tells the user that the current page can be added to their saved list immediately.
+
+### Save Dialog
+![Save Widget - Dialog](screenshots/savewidget-dialog.png)
+
+When the user clicks the save button, the extension opens a compact inline dialog that:
+
+- suggests a useful course/page name
+- shows the URL that will be stored
+- lets the user save without leaving the page
+
+The dialog is intentionally small and non-intrusive so it does not break the browsing flow.
+
+### Saved State
+![Save Widget - Saved State](screenshots/savewidget-saved-state.png)
+
+If the current relevant URL already exists in storage, the widget changes immediately to:
+
+- green
+- marked as `Saved`
+- non-clickable
+
+This removes ambiguity and prevents duplicate saving by URL.
+
+### Save Widget On Login Pages
+![Save Widget On Login Page](screenshots/moodle-login-autofill-saved.png)
+
+The widget can still reflect saved status even when the user lands on an authentication page or access gate on the way to a course. The goal is to keep the state visible and predictable across supported pages.
 
 ---
 
 ## Secure Autofill
 
-The extension can autofill:
+BGU Companion autofills only the fields that are repetitive and safe to handle locally:
 
-- Username
+- username
 - 9-digit student ID
 
-It does not store, read, or manage passwords.
+It never stores passwords and it never tries to manage credentials outside the browser's own password manager.
+
+### Student Info Autofill
+![Student Info Autofill](screenshots/student-info-autofill-v11.png)
+
+On supported Student Info pages, the extension can populate the username and ID fields automatically when the user has configured their profile in settings.
+
+The older Student Info screenshot can remain available too:
+
+![Student Info Autofill Legacy](screenshots/popupstudentinfo.png)
+
+### Portal Autofill
+![Portal Autofill](screenshots/portal-autofill-v11.png)
+
+The student portal is now part of the supported autofill flow as well. This extends the extension beyond Moodle and Gezer into another frequently used BGU system.
 
 ### Gezer Autofill
 ![Gezer Autofill](screenshots/popupgezer.png)
 
-### Student Info Autofill
-![Student Info Autofill](screenshots/popupstudentinfo.png)
+Gezer remains part of the secure autofill workflow, allowing students to move through exam-related pages faster without storing sensitive password data in the extension.
 
-Autofill uses heuristic field detection to identify the username and ID inputs safely.
+### Autofill Detection Model
 
----
+The autofill logic uses heuristic field detection rather than site-specific hardcoding only. In practice, that means the extension looks for:
 
-## New In v1.1
+- common username field patterns
+- likely ID field patterns
+- labels, placeholders, names, IDs, and other hints around inputs
 
-### Floating Save Widget
-
-BGU Companion now injects a compact floating save widget on supported BGU pages.
-
-Behavior:
-
-- `Save` state:
-  - Orange
-  - Clickable
-  - Opens an inline save dialog
-- `Saved` state:
-  - Green
-  - Disabled / non-clickable
-  - Shown immediately when the current relevant URL is already stored
-
-The save widget uses a normalized relevant URL, so Moodle pages prefer a cleaner course-level URL when one can be detected.
-
-### Portal Shortcut
-
-The popup now includes a dedicated `פורטל` shortcut:
-
-- `https://portal.bgu.ac.il/public/login`
-
-### Portal Autofill Support
-
-The content script now also runs on:
-
-- `https://portal.bgu.ac.il/*`
-
-This allows the existing username / 9-digit ID autofill flow to work there as well.
+This makes the feature more adaptable across different BGU pages while staying limited to username and ID only.
 
 ---
 
-## Supported Sites
+## How Saving Works
 
-The content script currently runs on:
+Saved pages are stored in `chrome.storage.local` using a simple structure:
+
+```json
+{
+  "Course Name": "https://example-url"
+}
+```
+
+That design keeps the extension easy to reason about and fully compatible across popup search, settings, and the floating save widget.
+
+When saving from Moodle, BGU Companion tries to detect a better course-level URL instead of blindly storing the exact current nested page. This matters because students often browse inside a course and still want to save the course entry point rather than a temporary sub-page.
+
+Duplicate handling is also deliberate:
+
+- duplicate URLs are blocked
+- existing names pointing to different URLs are not silently overwritten
+- saved state is reflected visually as soon as the extension detects the page is already stored
+
+---
+
+## Supported Systems
+
+The content script currently runs on the following hosts:
 
 - `https://moodle.bgu.ac.il/moodle/*`
 - `https://gezer1.bgu.ac.il/*`
@@ -134,112 +222,83 @@ The content script currently runs on:
 - `https://bgu4u.bgu.ac.il/*`
 - `https://portal.bgu.ac.il/*`
 
-Shortcut targets in the popup:
+The popup also includes direct shortcuts to:
+
+- Gezer
+- Student Info
+- Student Portal
+- Settings
+
+Shortcut targets:
 
 - Gezer: `https://gezer1.bgu.ac.il/meser/hlogin.php`
-- Student Info (`מידע אישי`): `https://bgu4u22.bgu.ac.il/apex/10g/r/f_login1004/login_desktop?p_lang=he`
-- Portal (`פורטל`): `https://portal.bgu.ac.il/public/login`
+- Student Info: `https://bgu4u22.bgu.ac.il/apex/10g/r/f_login1004/login_desktop?p_lang=he`
+- Student Portal: `https://portal.bgu.ac.il/public/login`
 
 ---
 
-## Core Features
+## Security And Privacy
 
-### 1. Quick Access Popup
+Security was one of the main design constraints for the extension.
 
-- Multi-view popup UI
-- Fast saved-course search
-- Direct shortcuts to key BGU systems
+BGU Companion:
 
-### 2. Saved Courses / Pages
+- stores course/page links locally using `chrome.storage.local`
+- stores autofill profile data locally using `chrome.storage.local`
+- never stores passwords
+- never sends user data to external servers
+- relies on Chrome Password Manager for password handling
 
-- Store custom course/page links in `chrome.storage.local`
-- Add, update, and delete saved entries
-- Keep compatibility with the existing `{ "Name": "URL" }` structure
-- Seed default course data when storage is empty
-
-### 3. Secure Autofill
-
-- Autofills username and 9-digit student ID
-- Works only on supported hosts
-- Never stores passwords
-
-### 4. Floating Save Widget
-
-- Save the current relevant page directly from the page itself
-- Suggest a smart page/course name
-- Prevent duplicate saves by URL
-- Prevent silent overwrite on name collisions
+This keeps the extension useful without taking ownership of the most sensitive part of the login flow.
 
 ---
 
-## Architecture
+## Technical Overview
 
-- `manifest.json` - extension configuration (Manifest V3)
-- `popup.html` / `popup.js` - popup hub and shortcuts
-- `options.html` / `options.js` - settings page and saved course management
-- `content.js` - autofill logic and floating save widget
+Core files:
+
+- `manifest.json` - extension configuration, permissions, and content script registration
+- `popup.html` / `popup.js` - popup interface, course search, and quick shortcuts
+- `options.html` / `options.js` - settings page, profile management, and saved course management
+- `content.js` - autofill logic and floating save widget behavior
 - `popup.css` - popup and settings styling
-- `courses-data.js` - seeded course data
+- `courses-data.js` - seeded default course data
 
----
-
-## Technical Highlights
+Technical highlights:
 
 - Chrome Extension Manifest V3
 - `chrome.storage.local` persistence
-- DOM-based heuristic autofill detection
-- Dynamic inline UI injection
-- Relevant URL normalization for saving Moodle pages
-- Compact state-driven widget behavior
-
----
-
-## Permissions Used
-
-- `tabs`
-- `storage`
-
-Used strictly for:
-
-- Opening external systems and saved pages
-- Storing local preferences and saved links
+- DOM-based heuristic input detection
+- dynamic on-page UI injection
+- state-based save widget behavior
+- Moodle-aware relevant URL normalization
 
 ---
 
 ## Installation
 
-### Option A - Install From ZIP
+### Install From Source
 
-1. Download the latest release ZIP from the GitHub Releases section.
+1. Download the project or clone the repository.
+2. Open Chrome and go to `chrome://extensions/`.
+3. Enable **Developer mode**.
+4. Click **Load unpacked**.
+5. Select the project folder that contains `manifest.json`.
+
+### Install From Release ZIP
+
+1. Download the latest release ZIP from GitHub Releases.
 2. Extract it to a local folder.
-3. Open Chrome and go to `chrome://extensions/`.
-4. Enable **Developer mode**.
-5. Click **Load unpacked**.
-6. Select the folder containing `manifest.json`.
-
-### Option B - Install From Source
-
-1. Clone the repo or download the source ZIP.
-2. Extract the project folder.
 3. Open `chrome://extensions/`.
 4. Enable **Developer mode**.
 5. Click **Load unpacked**.
-6. Select the folder containing `manifest.json`.
+6. Select the extracted folder containing `manifest.json`.
 
 ---
 
-## Privacy And Data
+## Screenshot Asset Names Used In This README
 
-- Course/page links are stored locally in `chrome.storage.local`
-- Profile preferences are stored locally in `chrome.storage.local`
-- Passwords are never stored by the extension
-- No user data is sent to external servers
-
----
-
-## Screenshot Paths For v1.1
-
-Existing screenshots already used in this README:
+Existing assets already present in the repo:
 
 - `screenshots/popuphome.png`
 - `screenshots/popupcourse1.png`
@@ -248,33 +307,41 @@ Existing screenshots already used in this README:
 - `screenshots/popupgezer.png`
 - `screenshots/popupstudentinfo.png`
 
-Recommended new screenshot file paths for the current version:
+Suggested filenames for the new screenshots shown above:
 
-- `screenshots/popupportal.png` - popup showing the new `פורטל` button
-- `screenshots/savewidget-save.png` - floating widget in orange `Save` state
-- `screenshots/savewidget-dialog.png` - inline save dialog opened from the widget
-- `screenshots/savewidget-saved.png` - floating widget in green `Saved` state
-- `screenshots/portal-autofill.png` - autofill behavior on `portal.bgu.ac.il`
-- `screenshots/settings-v11.png` - updated full-width settings layout
+- `screenshots/popup-home-v11.png`
+- `screenshots/popup-courses-view-v11.png`
+- `screenshots/settings-v11.png`
+- `screenshots/savewidget-save-state.png`
+- `screenshots/savewidget-saved-state.png`
+- `screenshots/savewidget-dialog.png`
+- `screenshots/moodle-login-autofill-saved.png`
+- `screenshots/student-info-autofill-v11.png`
+- `screenshots/portal-autofill-v11.png`
 
-You can drop screenshots into those paths and then add them into the README later without changing the repo structure.
-
----
-
-## What This Project Demonstrates
-
-- Product-oriented thinking
-- Frontend UI development
-- Chrome extension API usage
-- Secure handling of student login flows
-- DOM inspection and heuristic automation
-- Practical UX improvements for real users
+Drop those image files into the `screenshots/` folder and the README image references will render automatically.
 
 ---
 
-## Future Improvements
+## Project Value
 
-- Cross-device sync
-- Course grouping
-- Better page labeling for non-Moodle systems
-- Optional screenshot refresh for the new v1.1 UI
+This project demonstrates:
+
+- product-oriented UX thinking
+- Chrome extension architecture
+- browser API integration
+- safe handling of login-related workflows
+- pragmatic automation with real user constraints
+- interface design for daily student productivity
+
+---
+
+## Future Directions
+
+Potential next steps for the project:
+
+- sync saved links across devices
+- richer page labeling outside Moodle
+- course grouping or categorization
+- optional import/export of saved links
+- additional polish for the settings management workflow
