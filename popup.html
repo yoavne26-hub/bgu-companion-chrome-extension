@@ -7,50 +7,52 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <div class="container">
-    <header class="topbar">
-      <button id="btnBack" class="icon-btn" type="button" aria-label="Back" hidden>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-      </button>
-      <div class="topbar-title" id="titleText">BGU Companion</div>
-      <div class="topbar-spacer"></div>
-    </header>
+  <div class="popup-shell">
+    <div class="container">
+      <header class="topbar">
+        <button id="btnBack" class="icon-btn" type="button" aria-label="Back" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="topbar-title" id="titleText">BGU Companion</div>
+        <div class="topbar-spacer"></div>
+      </header>
 
-    <section id="view-main" data-view="main" class="view">
-      <div class="card">
-        <button id="btnCourses" type="button" class="big-btn">
-          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5v13A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5z"/></svg>
-          קורסים
-        </button>
-        <button id="btnGezer" type="button" class="big-btn">
-          <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          גזר (מבחנים)
-        </button>
-        <button id="btnInfo" type="button" class="big-btn">
-          <svg viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-          מידע אישי
-        </button>
-        <button id="btnPortal" type="button" class="big-btn">
-          <svg viewBox="0 0 24 24"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm4 2v10h10V7H7zm2 2h6v2H9V9zm0 4h4v2H9v-2z"/></svg>
-          פורטל
-        </button>
-        <button id="btnSettings" type="button" class="big-btn">
-          <svg viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
-          הגדרות
-        </button>
-      </div>
-      <p class="hint">מרכז מהיר למoodle ומערכות סטודנטים</p>
-    </section>
+      <section id="view-main" data-view="main" class="view">
+        <div class="card">
+          <button id="btnCourses" type="button" class="big-btn">
+            <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5v13A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5z"/></svg>
+            קורסים
+          </button>
+          <button id="btnGezer" type="button" class="big-btn">
+            <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            גזר (מבחנים)
+          </button>
+          <button id="btnInfo" type="button" class="big-btn">
+            <svg viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            מידע אישי
+          </button>
+          <button id="btnPortal" type="button" class="big-btn">
+            <svg viewBox="0 0 24 24"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm4 2v10h10V7H7zm2 2h6v2H9V9zm0 4h4v2H9v-2z"/></svg>
+            פורטל הסטודנט
+          </button>
+          <button id="btnSettings" type="button" class="big-btn">
+            <svg viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+            הגדרות
+          </button>
+        </div>
+        <p class="hint"> מרכז מהיר למערכות סטודנטים</p>
+      </section>
 
-    <section id="view-courses" data-view="courses" class="view" hidden>
-      <h2 class="subtitle">קורסים</h2>
-      <div class="search">
-        <input id="searchInput" type="text" placeholder="חיפוש קורס..." aria-label="Search courses" autofocus />
-        <button id="searchBtn" type="button">פתח</button>
-      </div>
-      <div id="message" class="message" role="status"></div>
-      <ul id="results" class="results" aria-live="polite"></ul>
-    </section>
+      <section id="view-courses" data-view="courses" class="view" hidden>
+        <h2 class="subtitle">קורסים</h2>
+        <div class="search">
+          <input id="searchInput" type="text" placeholder="חפש קורס..." aria-label="Search courses" autofocus />
+          <button id="searchBtn" type="button">פתח</button>
+        </div>
+        <div id="message" class="message" role="status"></div>
+        <ul id="results" class="results" aria-live="polite"></ul>
+      </section>
+    </div>
   </div>
   <script src="courses-data.js"></script>
   <script src="popup.js"></script>

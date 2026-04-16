@@ -18,28 +18,70 @@
   --primary-shadow: rgba(37, 99, 235, 0.3);
   --accent-shadow: rgba(249, 115, 22, 0.28);
 }
+html {
+  background: transparent;
+  border-radius: 32px;
+  overflow: hidden;
+}
 body {
   width: 340px;
   min-height: 280px;
   margin: 0;
   padding: 0;
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
-  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+  background: transparent;
   color: #1e293b;
+  border-radius: 32px;
+  overflow: hidden;
+  clip-path: inset(0 round 32px);
+}
+.popup-shell {
+  min-height: 260px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.18) 100%),
+    linear-gradient(135deg, #3657d7 0%, #ea7420 100%);
+  position: relative;
+  border-radius: 36px;
+  overflow: hidden;
+  border: none;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+}
+.popup-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.36) 0, rgba(255, 255, 255, 0.16) 18%, transparent 42%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.26) 0, rgba(255, 255, 255, 0.12) 18%, transparent 42%),
+    radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.18) 0, rgba(255, 255, 255, 0.08) 16%, transparent 38%),
+    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.28) 0, rgba(255, 255, 255, 0.12) 18%, transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0, transparent 18%, transparent 82%, rgba(255, 255, 255, 0.1) 100%);
+  pointer-events: none;
+}
+.popup-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  pointer-events: none;
 }
 .container {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 20px;
+  padding: 28px 28px 24px;
 }
 .topbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.2);
-  margin-bottom: 16px;
+  padding: 4px 2px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 18px;
 }
 .topbar-title {
   font-size: 20px;
@@ -54,8 +96,8 @@ body {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.2);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.12);
   color: white;
   cursor: pointer;
   display: inline-flex;
@@ -63,34 +105,34 @@ body {
   justify-content: center;
   font-size: 16px;
   transition: all 0.2s ease;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
-.icon-btn:hover { background: rgba(255,255,255,0.3); transform: translateX(-2px); }
+.icon-btn:hover { background: rgba(255,255,255,0.18); transform: translateX(-2px); }
 
 .card {
   background: rgba(255,255,255,0.95);
   border: none;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 30px;
+  padding: 26px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 12px 32px rgba(15,23,42,0.16), 0 0 0 1px rgba(255,255,255,0.1) inset;
-  backdrop-filter: blur(10px);
+  gap: 14px;
+  box-shadow: 0 22px 44px rgba(15,23,42,0.1);
+  backdrop-filter: blur(14px);
 }
 
 .big-btn {
   width: 100%;
   padding: 14px 16px;
   border: none;
-  border-radius: 12px;
+  border-radius: 16px;
   background: linear-gradient(135deg, var(--primary) 0%, var(--accent-2) 100%);
   color: white;
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 10px 24px var(--primary-shadow);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,7 +140,7 @@ body {
 }
 .big-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 30px var(--accent-shadow);
+  box-shadow: 0 8px 16px rgba(249, 115, 22, 0.2);
 }
 .big-btn:active { transform: translateY(0); }
 
@@ -109,10 +151,11 @@ body {
 }
 
 .hint {
-  margin: 8px 0 0;
+  margin: 14px 2px 0;
   font-size: 13px;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.86);
   text-align: center;
+  line-height: 1.45;
 }
 
 /* Course search view */
@@ -216,7 +259,21 @@ body {
 body.options {
   width: auto;
   min-height: 100vh;
+  padding: 0;
   background: linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%);
+  border-radius: 0;
+  overflow: visible;
+  border: none;
+  box-shadow: none;
+}
+
+body.options .popup-shell {
+  min-height: 0;
+  background: none;
+  border-radius: 0;
+  overflow: visible;
+  border: none;
+  box-shadow: none;
 }
 
 body.options .container {
