@@ -39,7 +39,7 @@ Passwords are never stored by the extension. Chrome Password Manager remains the
 ## Product Tour
 
 ## Main Popup
-![Main Popup](screenshots/popup-home-v11.png)
+![Main Popup](screenshots/popuphome.png)
 
 The popup is the main entry point to the extension. It is designed as a compact hub that gives immediate access to the most common BGU destinations:
 
@@ -51,14 +51,10 @@ The popup is the main entry point to the extension. It is designed as a compact 
 
 The popup was visually refreshed in v1.1 with a more polished rounded layout, softer chrome, updated icons, and a cleaner blue/orange visual identity.
 
-You can still use the existing screenshot if you prefer:
-
-![Main Popup Legacy](screenshots/popuphome.png)
-
 ---
 
 ## Course Search In The Popup
-![Course Search Popup](screenshots/popup-courses-view-v11.png)
+![Popup Search Legacy](screenshots/popupsearch1.png)
 
 The popup includes a dedicated course search view for fast access to saved pages. Students can type part of a course name and open the saved link immediately without manually browsing Moodle menus.
 
@@ -68,15 +64,16 @@ This is especially useful when:
 - the same course is used every week
 - a student wants one consistent place to open saved academic pages from
 
-Existing search screenshots can still be used as well:
+![Popup Search Legacy](screenshots/popupsearch2.png)
 
-![Popup Search Legacy](screenshots/popupcourse1.png)
-![Popup Search Feedback Legacy](screenshots/popupcourse2.png)
+![Popup Search Legacy](screenshots/popupsearch3.png)
+
+
 
 ---
 
 ## Settings And Course Management
-![Settings Page](screenshots/settings-v11.png)
+![Settings Page](screenshots/popupsettings.png)
 
 The settings page is the control center for the extension. It includes two major responsibilities:
 
@@ -98,9 +95,6 @@ They can also:
 
 The settings page layout was redesigned to use the full page width more effectively and to avoid the earlier horizontal overflow issues that made the courses table harder to use.
 
-You can keep the original screenshot reference if needed:
-
-![Settings Legacy](screenshots/popupsettings.png)
 
 ---
 
@@ -111,7 +105,7 @@ One of the main additions in v1.1 is the floating save widget that appears direc
 Instead of opening settings and copying a URL manually, the user can save the current page from the page itself.
 
 ### Save State
-![Save Widget - Save State](screenshots/savewidget-save-state.png)
+![Save Widget - Save State](screenshots/popupbuttonexp1.png)
 
 When the current relevant page is not yet stored, the widget appears in its active save state:
 
@@ -122,7 +116,7 @@ When the current relevant page is not yet stored, the widget appears in its acti
 This tells the user that the current page can be added to their saved list immediately.
 
 ### Save Dialog
-![Save Widget - Dialog](screenshots/savewidget-dialog.png)
+![Save Widget - Save State](screenshots/popupbuttonexp2.png)
 
 When the user clicks the save button, the extension opens a compact inline dialog that:
 
@@ -133,7 +127,7 @@ When the user clicks the save button, the extension opens a compact inline dialo
 The dialog is intentionally small and non-intrusive so it does not break the browsing flow.
 
 ### Saved State
-![Save Widget - Saved State](screenshots/savewidget-saved-state.png)
+![Save Widget - Save State](screenshots/popupexp3.png)
 
 If the current relevant URL already exists in storage, the widget changes immediately to:
 
@@ -142,11 +136,6 @@ If the current relevant URL already exists in storage, the widget changes immedi
 - non-clickable
 
 This removes ambiguity and prevents duplicate saving by URL.
-
-### Save Widget On Login Pages
-![Save Widget On Login Page](screenshots/moodle-login-autofill-saved.png)
-
-The widget can still reflect saved status even when the user lands on an authentication page or access gate on the way to a course. The goal is to keep the state visible and predictable across supported pages.
 
 ---
 
@@ -160,16 +149,13 @@ BGU Companion autofills only the fields that are repetitive and safe to handle l
 It never stores passwords and it never tries to manage credentials outside the browser's own password manager.
 
 ### Student Info Autofill
-![Student Info Autofill](screenshots/student-info-autofill-v11.png)
+![Student Info Autofill](screenshots/popupinfo.png)
 
 On supported Student Info pages, the extension can populate the username and ID fields automatically when the user has configured their profile in settings.
 
-The older Student Info screenshot can remain available too:
-
-![Student Info Autofill Legacy](screenshots/popupstudentinfo.png)
 
 ### Portal Autofill
-![Portal Autofill](screenshots/portal-autofill-v11.png)
+![Portal Autofill](screenshots/popipportal.png)
 
 The student portal is now part of the supported autofill flow as well. This extends the extension beyond Moodle and Gezer into another frequently used BGU system.
 
@@ -296,32 +282,6 @@ Technical highlights:
 
 ---
 
-## Screenshot Asset Names Used In This README
-
-Existing assets already present in the repo:
-
-- `screenshots/popuphome.png`
-- `screenshots/popupcourse1.png`
-- `screenshots/popupcourse2.png`
-- `screenshots/popupsettings.png`
-- `screenshots/popupgezer.png`
-- `screenshots/popupstudentinfo.png`
-
-Suggested filenames for the new screenshots shown above:
-
-- `screenshots/popup-home-v11.png`
-- `screenshots/popup-courses-view-v11.png`
-- `screenshots/settings-v11.png`
-- `screenshots/savewidget-save-state.png`
-- `screenshots/savewidget-saved-state.png`
-- `screenshots/savewidget-dialog.png`
-- `screenshots/moodle-login-autofill-saved.png`
-- `screenshots/student-info-autofill-v11.png`
-- `screenshots/portal-autofill-v11.png`
-
-Drop those image files into the `screenshots/` folder and the README image references will render automatically.
-
----
 
 ## Project Value
 
@@ -334,14 +294,4 @@ This project demonstrates:
 - pragmatic automation with real user constraints
 - interface design for daily student productivity
 
----
 
-## Future Directions
-
-Potential next steps for the project:
-
-- sync saved links across devices
-- richer page labeling outside Moodle
-- course grouping or categorization
-- optional import/export of saved links
-- additional polish for the settings management workflow
