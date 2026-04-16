@@ -155,7 +155,7 @@ On supported Student Info pages, the extension can populate the username and ID 
 
 
 ### Portal Autofill
-![Portal Autofill](screenshots/popipportal.png)
+![Portal Autofill](screenshots/popupportal.png)
 
 The student portal is now part of the supported autofill flow as well. This extends the extension beyond Moodle and Gezer into another frequently used BGU system.
 
