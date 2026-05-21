@@ -30,7 +30,20 @@ const JIMA_CONTEXT_LIMITS = Object.freeze({
   headings: 40
 });
 
+const JIMA_DETECTION_LIMITS = Object.freeze({
+  homeworkCandidates: 20,
+  deadlineCandidates: 20,
+  fileCandidates: 30,
+  evidence: 250,
+  surroundingText: 250
+});
+
 const JIMA_FILE_URL_PATTERN = /(\.pdf|\.docx?|\.pptx?|\.xlsx?|\.csv|\.zip|\.rar|\.7z|\.txt|\.rtf|\.jpg|\.jpeg|\.png|\.gif|pluginfile\.php|forcedownload=1|\/mod\/resource\/view\.php)/i;
+const JIMA_FILE_RESOURCE_PATTERN = /(\.pdf|\.docx?|\.pptx?|\.xlsx?|\.csv|\.zip|\.rar|\.7z|\.txt|pluginfile\.php|\/mod\/resource\/view\.php|\/mod\/folder\/view\.php|\bresource\b|\bfolder\b)/i;
+const JIMA_TASK_KEYWORD_PATTERN = /(assignment|homework|task|quiz|submission|submit|due|deadline|exercise|project|lab|exam|test|\u05de\u05d5\u05e2\u05d3 \u05d4\u05d2\u05e9\u05d4|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9 \u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d1\u05d5\u05d7\u05df|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05e4\u05e8\u05d5\u05d9\u05d9\u05e7\u05d8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e2\u05d1\u05d3\u05d4|\u05de\u05d1\u05d7\u05df)/i;
+const JIMA_DEADLINE_CONTEXT_PATTERN = /(due|deadline|submission|submit|available until|until|\u05de\u05d5\u05e2\u05d3|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05e2\u05d3|\u05ea\u05d0\u05e8\u05d9\u05da|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df)/i;
+const JIMA_DATE_PATTERN = /\b(?:\d{1,2}[/.]\d{1,2}[/.]\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4}|\d{4}-\d{1,2}-\d{1,2})\b/g;
+const JIMA_MOODLE_ACTIVITY_PATTERN = /\/mod\/(assign|quiz|workshop|lesson|forum|choice|feedback|resource|folder)\/view\.php/i;
 
 function compactJimaText(value) {
   return (value || "").replace(/\s+/g, " ").trim();
@@ -39,6 +52,188 @@ function compactJimaText(value) {
 function capJimaText(value, limit) {
   const text = compactJimaText(value);
   return text.length > limit ? `${text.slice(0, limit).trim()}...` : text;
+}
+
+function getJimaContextWindow(text, index, length, limit) {
+  const half = Math.floor(limit / 2);
+  const start = Math.max(0, index - half);
+  const end = Math.min(text.length, index + length + half);
+  return capJimaText(text.slice(start, end), limit);
+}
+
+function addJimaUniqueCandidate(candidates, seen, key, candidate, limit) {
+  if (!key || seen.has(key) || candidates.length >= limit) return;
+  seen.add(key);
+  candidates.push(candidate);
+}
+
+function getJimaActivityType(url) {
+  const match = (url || "").match(JIMA_MOODLE_ACTIVITY_PATTERN);
+  return match?.[1] || "";
+}
+
+function getJimaFileType(link) {
+  const value = `${link?.text || ""} ${link?.url || ""}`;
+  const extensionMatch = value.match(/\.([a-z0-9]{2,5})(?:[?#/]|$)/i);
+  if (extensionMatch) return extensionMatch[1].toUpperCase();
+  if (/pluginfile\.php/i.test(value)) return "Moodle file";
+  if (/\/mod\/folder\/view\.php|\bfolder\b/i.test(value)) return "Folder";
+  if (/\/mod\/resource\/view\.php|\bresource\b/i.test(value)) return "Resource";
+  return "";
+}
+
+function detectJimaFileCandidates(links) {
+  const seen = new Set();
+  const candidates = [];
+
+  for (const link of links) {
+    const evidenceText = `${link.text || ""} ${link.url || ""}`;
+    if (!JIMA_FILE_RESOURCE_PATTERN.test(evidenceText)) continue;
+
+    const fileType = getJimaFileType(link);
+    const highConfidence = /(\.[a-z0-9]{2,5}|pluginfile\.php)/i.test(evidenceText);
+
+    addJimaUniqueCandidate(
+      candidates,
+      seen,
+      link.url || link.text,
+      {
+        name: capJimaText(link.text || link.url || "Moodle resource", 160),
+        url: link.url,
+        fileType,
+        evidence: capJimaText(evidenceText, JIMA_DETECTION_LIMITS.evidence),
+        confidence: highConfidence ? "High" : "Medium"
+      },
+      JIMA_DETECTION_LIMITS.fileCandidates
+    );
+  }
+
+  return candidates;
+}
+
+function detectJimaHomeworkCandidates(pageContext) {
+  const candidates = [];
+  const seen = new Set();
+
+  for (const link of pageContext.links || []) {
+    const activityType = getJimaActivityType(link.url);
+    const evidenceText = `${link.text || ""} ${link.url || ""}`;
+    if (!activityType && !JIMA_TASK_KEYWORD_PATTERN.test(evidenceText)) continue;
+
+    const isStrongActivity = /^(assign|quiz|workshop)$/.test(activityType);
+    const confidence = isStrongActivity ? "High" : activityType ? "Medium" : "Low";
+
+    addJimaUniqueCandidate(
+      candidates,
+      seen,
+      `link:${link.url || link.text}`,
+      {
+        title: capJimaText(link.text || link.url || "Possible Moodle activity", 160),
+        type: activityType || "keyword",
+        url: link.url,
+        evidence: capJimaText(evidenceText, JIMA_DETECTION_LIMITS.evidence),
+        confidence,
+        uncertainty: "Rule-based candidate. Confirm the exact requirement and deadline on Moodle."
+      },
+      JIMA_DETECTION_LIMITS.homeworkCandidates
+    );
+  }
+
+  for (const heading of pageContext.headings || []) {
+    if (!JIMA_TASK_KEYWORD_PATTERN.test(heading.text)) continue;
+
+    addJimaUniqueCandidate(
+      candidates,
+      seen,
+      `heading:${heading.level}:${heading.text}`,
+      {
+        title: capJimaText(heading.text, 160),
+        type: "heading",
+        url: pageContext.currentUrl,
+        evidence: capJimaText(`${heading.level.toUpperCase()}: ${heading.text}`, JIMA_DETECTION_LIMITS.evidence),
+        confidence: "Medium",
+        uncertainty: "Detected from a visible heading. It may be a topic, activity, or instruction."
+      },
+      JIMA_DETECTION_LIMITS.homeworkCandidates
+    );
+  }
+
+  const preview = pageContext.visibleTextPreview || "";
+  const keywordRegex = new RegExp(JIMA_TASK_KEYWORD_PATTERN.source, "gi");
+  let match;
+  while ((match = keywordRegex.exec(preview)) && candidates.length < JIMA_DETECTION_LIMITS.homeworkCandidates) {
+    const evidence = getJimaContextWindow(
+      preview,
+      match.index,
+      match[0].length,
+      JIMA_DETECTION_LIMITS.evidence
+    );
+
+    addJimaUniqueCandidate(
+      candidates,
+      seen,
+      `text:${evidence}`,
+      {
+        title: capJimaText(match[0], 80),
+        type: "visible text",
+        url: pageContext.currentUrl,
+        evidence,
+        confidence: JIMA_DEADLINE_CONTEXT_PATTERN.test(evidence) ? "Medium" : "Low",
+        uncertainty: "Detected from nearby visible text. Jima cannot confirm this is assigned work yet."
+      },
+      JIMA_DETECTION_LIMITS.homeworkCandidates
+    );
+  }
+
+  return candidates;
+}
+
+function detectJimaDeadlineCandidates(pageContext) {
+  const text = [
+    pageContext.visibleTextPreview,
+    ...(pageContext.headings || []).map((heading) => heading.text),
+    ...(pageContext.links || []).map((link) => link.text)
+  ].filter(Boolean).join(" ");
+  const seen = new Set();
+  const candidates = [];
+  let match;
+
+  JIMA_DATE_PATTERN.lastIndex = 0;
+  while ((match = JIMA_DATE_PATTERN.exec(text)) && candidates.length < JIMA_DETECTION_LIMITS.deadlineCandidates) {
+    const surroundingText = getJimaContextWindow(
+      text,
+      match.index,
+      match[0].length,
+      JIMA_DETECTION_LIMITS.surroundingText
+    );
+    const hasDeadlineContext = JIMA_DEADLINE_CONTEXT_PATTERN.test(surroundingText);
+
+    addJimaUniqueCandidate(
+      candidates,
+      seen,
+      `${match[0]}:${surroundingText}`,
+      {
+        rawDate: match[0],
+        surroundingText,
+        confidence: hasDeadlineContext ? "Medium" : "Low",
+        uncertainty: hasDeadlineContext
+          ? "Date appears near deadline/submission wording, but confirm the final deadline on Moodle."
+          : "Date found, but Jima cannot confirm it is a deadline."
+      },
+      JIMA_DETECTION_LIMITS.deadlineCandidates
+    );
+  }
+  JIMA_DATE_PATTERN.lastIndex = 0;
+
+  return candidates;
+}
+
+function detectJimaCandidates(pageContext) {
+  return {
+    homeworkCandidates: detectJimaHomeworkCandidates(pageContext),
+    deadlineCandidates: detectJimaDeadlineCandidates(pageContext),
+    fileCandidates: detectJimaFileCandidates(pageContext.links || [])
+  };
 }
 
 function isJimaVisibleElement(element) {
@@ -159,19 +354,23 @@ function extractJimaMoodleContext() {
     };
   }
 
+  const pageContext = {
+    pageTitle: primaryHeading?.text || document.title,
+    currentUrl: location.href,
+    documentTitle: document.title,
+    visibleTextPreview,
+    selectedText: getJimaSelectedText(),
+    headings,
+    links,
+    fileLinks,
+    limits: JIMA_CONTEXT_LIMITS
+  };
+
   return {
     ok: true,
-    context: {
-      pageTitle: primaryHeading?.text || document.title,
-      currentUrl: location.href,
-      documentTitle: document.title,
-      visibleTextPreview,
-      selectedText: getJimaSelectedText(),
-      headings,
-      links,
-      fileLinks,
-      limits: JIMA_CONTEXT_LIMITS
-    }
+    context: pageContext,
+    pageContext,
+    detections: detectJimaCandidates(pageContext)
   };
 }
 
