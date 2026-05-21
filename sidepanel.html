@@ -64,6 +64,44 @@
           <ul id="filesList" class="candidate-list"></ul>
         </div>
 
+        <section id="aiPanel" class="ai-panel" aria-label="Ask Jima with AI" hidden>
+          <h2>Ask Jima with AI</h2>
+          <p class="ai-note">
+            AI analysis sends the extracted page context and local detections to your local Jima backend. No API key is stored in the extension.
+          </p>
+          <textarea id="aiQuestionInput" rows="3" placeholder="Ask Jima something about this page..."></textarea>
+          <button id="askAiBtn" class="primary-action" type="button">
+            Ask Jima with AI
+          </button>
+          <div id="aiStatusMessage" class="status-message" role="status" aria-live="polite"></div>
+          <div id="aiResults" class="ai-results" hidden>
+            <div class="preview-section">
+              <h3>Jima summary</h3>
+              <p id="aiSummary" class="ai-text"></p>
+            </div>
+            <div class="preview-section">
+              <h3>Assignments</h3>
+              <ul id="aiAssignments" class="candidate-list"></ul>
+            </div>
+            <div class="preview-section">
+              <h3>Dates / deadlines</h3>
+              <ul id="aiDates" class="candidate-list"></ul>
+            </div>
+            <div class="preview-section">
+              <h3>Files</h3>
+              <ul id="aiFiles" class="candidate-list"></ul>
+            </div>
+            <div class="preview-section">
+              <h3>Next actions</h3>
+              <ul id="aiNextActions" class="preview-list"></ul>
+            </div>
+            <div class="preview-section">
+              <h3>Uncertainties</h3>
+              <ul id="aiUncertainties" class="preview-list"></ul>
+            </div>
+          </div>
+        </section>
+
         <div class="preview-section">
           <h3>Headings <span id="headingsCount"></span></h3>
           <ul id="headingsList" class="preview-list"></ul>

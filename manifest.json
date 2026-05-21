@@ -26,7 +26,8 @@
     "https://gezer1.bgu.ac.il/*",
     "https://bgu4u22.bgu.ac.il/*",
     "https://bgu4u.bgu.ac.il/*",
-    "https://portal.bgu.ac.il/*"
+    "https://portal.bgu.ac.il/*",
+    "http://localhost:3000/*"
   ],
   "content_scripts": [
     {

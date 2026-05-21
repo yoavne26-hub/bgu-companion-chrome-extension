@@ -167,6 +167,66 @@ h1 {
   display: none;
 }
 
+.ai-panel[hidden],
+.ai-results[hidden] {
+  display: none;
+}
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 14px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+}
+
+.ai-panel h2 {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.ai-note {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#aiQuestionInput {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--surface-soft);
+  outline: none;
+}
+
+#aiQuestionInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+}
+
+.ai-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-text {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .preview-header {
   display: flex;
   align-items: flex-start;

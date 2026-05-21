@@ -1,8 +1,12 @@
 const JIMA_MESSAGES = Object.freeze({
   OPEN_SIDE_PANEL: "OPEN_JIMA_SIDE_PANEL",
   ANALYZE_CURRENT_PAGE: "JIMA_ANALYZE_CURRENT_PAGE",
-  GET_MOODLE_CONTEXT: "JIMA_GET_MOODLE_CONTEXT"
+  GET_MOODLE_CONTEXT: "JIMA_GET_MOODLE_CONTEXT",
+  ANALYZE_WITH_AI: "JIMA_ANALYZE_WITH_AI"
 });
+
+const JIMA_BACKEND_ANALYZE_URL = "http://localhost:3000/api/jima/analyze-context";
+const JIMA_BACKEND_TIMEOUT_MS = 20000;
 
 function isMoodleTab(tab) {
   try {
@@ -30,6 +34,65 @@ function sendTabMessage(tabId, message) {
       resolve(response || { ok: false, error: "No page response received." });
     });
   });
+}
+
+async function askJimaBackend(payload) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), JIMA_BACKEND_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(JIMA_BACKEND_ANALYZE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    let body = null;
+    try {
+      body = await response.json();
+    } catch {
+      return {
+        ok: false,
+        error: "Jima backend returned an invalid response."
+      };
+    }
+
+    if (!response.ok || body?.ok === false) {
+      return {
+        ok: false,
+        error: body?.error || "Jima backend could not complete the analysis."
+      };
+    }
+
+    if (!body?.analysis) {
+      return {
+        ok: false,
+        error: "Jima backend response did not include analysis results."
+      };
+    }
+
+    return {
+      ok: true,
+      analysis: body.analysis
+    };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return {
+        ok: false,
+        error: "Jima backend timed out. Make sure the local backend is running and try again."
+      };
+    }
+
+    return {
+      ok: false,
+      error: "Jima backend is offline or unreachable. Start the local backend and try again."
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -77,6 +140,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({
           ok: false,
           error: error?.message || "Jima could not analyze this page."
+        });
+      });
+
+    return true;
+  }
+
+  if (message?.type === JIMA_MESSAGES.ANALYZE_WITH_AI) {
+    askJimaBackend({
+      pageContext: message.pageContext,
+      detections: message.detections || {},
+      userQuestion: message.userQuestion || ""
+    })
+      .then(sendResponse)
+      .catch(() => {
+        sendResponse({
+          ok: false,
+          error: "Jima backend request failed."
         });
       });
 

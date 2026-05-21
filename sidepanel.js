@@ -1,3 +1,6 @@
+const DEFAULT_AI_QUESTION =
+  "What homework, deadlines, files, and next actions are visible on this Moodle page?";
+
 const analyzePageBtn = document.getElementById("analyzePageBtn");
 const statusMessage = document.getElementById("statusMessage");
 const previewPanel = document.getElementById("previewPanel");
@@ -15,6 +18,20 @@ const headingsList = document.getElementById("headingsList");
 const fileLinksCount = document.getElementById("fileLinksCount");
 const fileLinksList = document.getElementById("fileLinksList");
 const textPreview = document.getElementById("textPreview");
+const aiPanel = document.getElementById("aiPanel");
+const aiQuestionInput = document.getElementById("aiQuestionInput");
+const askAiBtn = document.getElementById("askAiBtn");
+const aiStatusMessage = document.getElementById("aiStatusMessage");
+const aiResults = document.getElementById("aiResults");
+const aiSummary = document.getElementById("aiSummary");
+const aiAssignments = document.getElementById("aiAssignments");
+const aiDates = document.getElementById("aiDates");
+const aiFiles = document.getElementById("aiFiles");
+const aiNextActions = document.getElementById("aiNextActions");
+const aiUncertainties = document.getElementById("aiUncertainties");
+
+let latestPageContext = null;
+let latestDetections = null;
 
 function setStatus(text, type = "") {
   if (!statusMessage) return;
@@ -22,10 +39,22 @@ function setStatus(text, type = "") {
   statusMessage.className = `status-message${type ? ` is-${type}` : ""}`;
 }
 
+function setAiStatus(text, type = "") {
+  if (!aiStatusMessage) return;
+  aiStatusMessage.textContent = text;
+  aiStatusMessage.className = `status-message${type ? ` is-${type}` : ""}`;
+}
+
 function setLoading(isLoading) {
   if (!analyzePageBtn) return;
   analyzePageBtn.disabled = isLoading;
   analyzePageBtn.textContent = isLoading ? "Analyzing locally..." : "Analyze current Moodle page";
+}
+
+function setAiLoading(isLoading) {
+  if (!askAiBtn) return;
+  askAiBtn.disabled = isLoading;
+  askAiBtn.textContent = isLoading ? "Asking local backend..." : "Ask Jima with AI";
 }
 
 function clearList(listEl) {
@@ -35,6 +64,12 @@ function clearList(listEl) {
 function appendEmptyRow(listEl, text) {
   const item = document.createElement("li");
   item.className = "empty-row";
+  item.textContent = text;
+  listEl.appendChild(item);
+}
+
+function appendPlainRow(listEl, text) {
+  const item = document.createElement("li");
   item.textContent = text;
   listEl.appendChild(item);
 }
@@ -187,18 +222,93 @@ function renderContext(pageContext, detections) {
   const fileLinks = pageContext.fileLinks || [];
   const links = pageContext.links || [];
 
+  latestPageContext = pageContext;
+  latestDetections = detections || {};
+
   previewTitle.textContent = pageContext.pageTitle || pageContext.documentTitle || "Untitled Moodle page";
   previewUrl.href = pageContext.currentUrl || "#";
   previewUrl.textContent = pageContext.currentUrl || "No URL available";
   previewMeta.textContent = `${links.length} links`;
   textPreview.textContent = pageContext.visibleTextPreview || "No visible text preview was returned.";
 
-  renderDetections(detections);
+  renderDetections(latestDetections);
   renderHeadings(headings);
   renderFileLinks(fileLinks);
 
   previewPanel.hidden = false;
-  setStatus("This detection is rule-based and stays local. AI analysis will be added in a later phase.", "success");
+  aiPanel.hidden = false;
+  aiResults.hidden = true;
+  setAiStatus("", "");
+  setStatus("This detection is rule-based and stays local. Use the AI button only if you want to send this extracted context to your local backend.", "success");
+}
+
+function renderAiAssignments(assignments) {
+  clearList(aiAssignments);
+  if (!assignments.length) {
+    appendEmptyRow(aiAssignments, "Jima did not find clear assignments in the provided context.");
+    return;
+  }
+
+  for (const assignment of assignments) {
+    const title = assignment.dueDate ? `${assignment.title} - due ${assignment.dueDate}` : assignment.title;
+    const item = createCandidateCard(title || "Assignment", assignment.confidence, "");
+    appendCandidateText(item, "candidate-evidence", assignment.evidence ? `Evidence: ${assignment.evidence}` : "");
+    appendCandidateText(item, "candidate-uncertainty", assignment.uncertainty);
+    aiAssignments.appendChild(item);
+  }
+}
+
+function renderAiDates(dates) {
+  clearList(aiDates);
+  if (!dates.length) {
+    appendEmptyRow(aiDates, "No clear dates or deadlines were returned.");
+    return;
+  }
+
+  for (const date of dates) {
+    const item = createCandidateCard(date.rawDate || "Date clue", date.confidence, "");
+    appendCandidateText(item, "candidate-meta", date.meaning ? `Meaning: ${date.meaning}` : "");
+    appendCandidateText(item, "candidate-evidence", date.evidence ? `Evidence: ${date.evidence}` : "");
+    appendCandidateText(item, "candidate-uncertainty", date.uncertainty);
+    aiDates.appendChild(item);
+  }
+}
+
+function renderAiFiles(files) {
+  clearList(aiFiles);
+  if (!files.length) {
+    appendEmptyRow(aiFiles, "No files were returned from the provided context.");
+    return;
+  }
+
+  for (const file of files) {
+    const title = file.fileType ? `${file.name} (${file.fileType})` : file.name;
+    const item = createCandidateCard(title || "Visible file", file.confidence, "");
+    appendCandidateText(item, "candidate-evidence", file.evidence ? `Evidence: ${file.evidence}` : "");
+    aiFiles.appendChild(item);
+  }
+}
+
+function renderPlainList(listEl, items, emptyText) {
+  clearList(listEl);
+  if (!items.length) {
+    appendEmptyRow(listEl, emptyText);
+    return;
+  }
+
+  for (const item of items) {
+    appendPlainRow(listEl, item);
+  }
+}
+
+function renderAiAnalysis(analysis) {
+  aiSummary.textContent = analysis.summary || "Jima returned no summary.";
+  renderAiAssignments(analysis.assignments || []);
+  renderAiDates(analysis.dates || []);
+  renderAiFiles(analysis.files || []);
+  renderPlainList(aiNextActions, analysis.nextActions || [], "No next actions were returned.");
+  renderPlainList(aiUncertainties, analysis.uncertainties || [], "No extra uncertainties were returned.");
+  aiResults.hidden = false;
 }
 
 function analyzeCurrentPage() {
@@ -207,8 +317,12 @@ function analyzeCurrentPage() {
     return;
   }
 
+  latestPageContext = null;
+  latestDetections = null;
   setLoading(true);
   previewPanel.hidden = true;
+  aiPanel.hidden = true;
+  aiResults.hidden = true;
   setStatus("Reading visible Moodle context locally...", "active");
 
   chrome.runtime.sendMessage({ type: "JIMA_ANALYZE_CURRENT_PAGE" }, (response) => {
@@ -228,6 +342,47 @@ function analyzeCurrentPage() {
   });
 }
 
+function askJimaWithAi() {
+  if (!latestPageContext) {
+    setAiStatus("Run local analysis first, then ask Jima with AI.", "error");
+    return;
+  }
+
+  const userQuestion = aiQuestionInput?.value.trim() || DEFAULT_AI_QUESTION;
+  setAiLoading(true);
+  aiResults.hidden = true;
+  setAiStatus("Sending extracted context to your local Jima backend...", "active");
+
+  chrome.runtime.sendMessage(
+    {
+      type: "JIMA_ANALYZE_WITH_AI",
+      pageContext: latestPageContext,
+      detections: latestDetections || {},
+      userQuestion
+    },
+    (response) => {
+      setAiLoading(false);
+
+      if (chrome.runtime.lastError) {
+        setAiStatus(chrome.runtime.lastError.message || "Jima AI request failed.", "error");
+        return;
+      }
+
+      if (!response?.ok) {
+        setAiStatus(response?.error || "Jima AI request failed.", "error");
+        return;
+      }
+
+      renderAiAnalysis(response.analysis || {});
+      setAiStatus("AI analysis returned from your local backend.", "success");
+    }
+  );
+}
+
 if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);
+}
+
+if (askAiBtn) {
+  askAiBtn.addEventListener("click", askJimaWithAi);
 }
