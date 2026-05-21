@@ -10,6 +10,7 @@ const btnCourses = document.getElementById("btnCourses");
 const btnGezer = document.getElementById("btnGezer");
 const btnInfo = document.getElementById("btnInfo");
 const btnPortal = document.getElementById("btnPortal");
+const btnJima = document.getElementById("btnJima");
 const titleText = document.getElementById("titleText");
 const viewMain = document.getElementById("view-main");
 const viewCourses = document.getElementById("view-courses");
@@ -48,6 +49,24 @@ function openCourse(url, name) {
       return;
     }
     setMessage(`Opening ${name}...`, "success");
+  });
+}
+
+function openJimaSidePanel() {
+  chrome.windows.getCurrent((currentWindow) => {
+    const windowId = currentWindow?.id;
+
+    chrome.runtime.sendMessage({ type: "OPEN_JIMA_SIDE_PANEL", windowId }, (response) => {
+      if (chrome.runtime.lastError || !response?.ok) {
+        console.warn(
+          "Could not open Jima side panel.",
+          chrome.runtime.lastError?.message || response?.error || ""
+        );
+        return;
+      }
+
+      window.close();
+    });
   });
 }
 
@@ -122,6 +141,10 @@ if (btnCourses) {
     setMessage("");
     setView("courses");
   });
+}
+
+if (btnJima) {
+  btnJima.addEventListener("click", openJimaSidePanel);
 }
 
 if (btnBack) {

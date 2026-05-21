@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jima</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <main class="sidepanel-shell">
+    <section class="hero-card">
+      <div class="brand-mark" aria-hidden="true">J</div>
+      <div>
+        <h1>Jima</h1>
+        <p class="subtitle">BGU Companion Student Assistant</p>
+      </div>
+    </section>
+
+    <section class="content-card">
+      <p class="intro">
+        Open a Moodle page and Jima will help you identify assignments, deadlines, files, and next steps.
+      </p>
+
+      <button id="analyzePageBtn" class="primary-action" type="button">
+        Analyze current Moodle page
+      </button>
+
+      <div id="statusMessage" class="status-message" role="status" aria-live="polite">
+        This preview stays local. AI analysis will be added in a later phase.
+      </div>
+
+      <section id="previewPanel" class="preview-panel" aria-label="Local Moodle context preview" hidden>
+        <div class="preview-header">
+          <h2>Local Moodle Preview</h2>
+          <span id="previewMeta" class="preview-meta"></span>
+        </div>
+
+        <div class="preview-field">
+          <span class="field-label">Page title</span>
+          <strong id="previewTitle"></strong>
+        </div>
+
+        <div class="preview-field">
+          <span class="field-label">URL</span>
+          <a id="previewUrl" class="preview-url" href="#"></a>
+        </div>
+
+        <div class="preview-section">
+          <h3>Headings <span id="headingsCount"></span></h3>
+          <ul id="headingsList" class="preview-list"></ul>
+        </div>
+
+        <div class="preview-section">
+          <h3>File links <span id="fileLinksCount"></span></h3>
+          <ul id="fileLinksList" class="preview-list"></ul>
+        </div>
+
+        <div class="preview-section">
+          <h3>Visible text preview</h3>
+          <p id="textPreview" class="text-preview"></p>
+        </div>
+      </section>
+    </section>
+
+    <section class="privacy-card">
+      <h2>Privacy</h2>
+      <p>Jima will only use page context after you choose to analyze a page.</p>
+    </section>
+  </main>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

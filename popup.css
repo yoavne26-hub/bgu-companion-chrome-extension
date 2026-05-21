@@ -158,6 +158,75 @@ body {
   line-height: 1.45;
 }
 
+.jima-entry-card {
+  margin-top: 14px;
+}
+
+.jima-entry {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 22px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+  transition: all 0.2s ease;
+}
+
+.jima-entry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(249, 115, 22, 0.18);
+}
+
+.jima-entry:active {
+  transform: translateY(0);
+}
+
+.jima-entry-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-2) 100%);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+}
+
+.jima-entry-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+}
+
+.jima-entry-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jima-entry-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.jima-entry-text {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 /* Course search view */
 .view[hidden] { display: none; }
 

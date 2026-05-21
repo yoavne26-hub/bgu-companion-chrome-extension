@@ -14,7 +14,13 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["tabs", "storage"],
+  "permissions": ["tabs", "storage", "sidePanel"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "host_permissions": [
     "https://moodle.bgu.ac.il/*",
     "https://gezer1.bgu.ac.il/*",

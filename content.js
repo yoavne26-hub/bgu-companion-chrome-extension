@@ -22,6 +22,178 @@ const UI_COLORS = Object.freeze({
   successShadow: "rgba(21, 128, 61, 0.24)"
 });
 
+const JIMA_CONTEXT_LIMITS = Object.freeze({
+  textPreview: 7000,
+  selectedText: 2000,
+  links: 50,
+  fileLinks: 30,
+  headings: 40
+});
+
+const JIMA_FILE_URL_PATTERN = /(\.pdf|\.docx?|\.pptx?|\.xlsx?|\.csv|\.zip|\.rar|\.7z|\.txt|\.rtf|\.jpg|\.jpeg|\.png|\.gif|pluginfile\.php|forcedownload=1|\/mod\/resource\/view\.php)/i;
+
+function compactJimaText(value) {
+  return (value || "").replace(/\s+/g, " ").trim();
+}
+
+function capJimaText(value, limit) {
+  const text = compactJimaText(value);
+  return text.length > limit ? `${text.slice(0, limit).trim()}...` : text;
+}
+
+function isJimaVisibleElement(element) {
+  if (!element || !(element instanceof Element)) return false;
+  if (element.closest("[hidden], [aria-hidden='true']")) return false;
+
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+    return false;
+  }
+
+  return element === document.body || element.getClientRects().length > 0;
+}
+
+function isJimaSkippedTextParent(element) {
+  return !!element?.closest(
+    "script, style, noscript, template, input, textarea, select, option, button"
+  );
+}
+
+function getJimaMainRoot() {
+  return (
+    document.querySelector("#region-main") ||
+    document.querySelector("main") ||
+    document.querySelector("[role='main']") ||
+    document.querySelector("#page-content") ||
+    document.body
+  );
+}
+
+function getJimaVisibleTextPreview() {
+  const root = getJimaMainRoot();
+  if (!root) return "";
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const chunks = [];
+  let currentLength = 0;
+
+  while (walker.nextNode() && currentLength < JIMA_CONTEXT_LIMITS.textPreview) {
+    const node = walker.currentNode;
+    const parent = node.parentElement;
+    if (!parent || isJimaSkippedTextParent(parent) || !isJimaVisibleElement(parent)) continue;
+
+    const text = compactJimaText(node.nodeValue);
+    if (!text) continue;
+
+    chunks.push(text);
+    currentLength += text.length + 1;
+  }
+
+  return capJimaText(chunks.join(" "), JIMA_CONTEXT_LIMITS.textPreview);
+}
+
+function getJimaHeadings() {
+  const headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"))
+    .filter(isJimaVisibleElement)
+    .map((heading) => ({
+      level: heading.tagName.toLowerCase(),
+      text: compactJimaText(heading.textContent)
+    }))
+    .filter((heading) => heading.text);
+
+  return headings.slice(0, JIMA_CONTEXT_LIMITS.headings);
+}
+
+function getJimaLinks() {
+  const seen = new Set();
+  const links = [];
+
+  for (const link of Array.from(document.querySelectorAll("a[href]"))) {
+    if (!(link instanceof HTMLAnchorElement) || !isJimaVisibleElement(link)) continue;
+    if (/^(javascript:|mailto:|tel:)/i.test(link.href)) continue;
+
+    const text = compactJimaText(link.textContent) || link.href;
+    const entry = {
+      text: capJimaText(text, 160),
+      url: link.href
+    };
+    const key = `${entry.text}|${entry.url}`;
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    links.push(entry);
+    if (links.length >= JIMA_CONTEXT_LIMITS.links) break;
+  }
+
+  return links;
+}
+
+function getJimaSelectedText() {
+  try {
+    return capJimaText(window.getSelection()?.toString() || "", JIMA_CONTEXT_LIMITS.selectedText);
+  } catch {
+    return "";
+  }
+}
+
+function extractJimaMoodleContext() {
+  if (location.hostname !== "moodle.bgu.ac.il") {
+    return {
+      ok: false,
+      error: "Open a BGU Moodle page first, then ask Jima to analyze it."
+    };
+  }
+
+  const links = getJimaLinks();
+  const fileLinks = links
+    .filter((link) => JIMA_FILE_URL_PATTERN.test(`${link.text} ${link.url}`))
+    .slice(0, JIMA_CONTEXT_LIMITS.fileLinks);
+  const headings = getJimaHeadings();
+  const primaryHeading = headings.find((heading) => heading.level === "h1") || headings[0];
+  const visibleTextPreview = getJimaVisibleTextPreview();
+
+  if (!visibleTextPreview) {
+    return {
+      ok: false,
+      error: "Jima could not find visible Moodle text on this page."
+    };
+  }
+
+  return {
+    ok: true,
+    context: {
+      pageTitle: primaryHeading?.text || document.title,
+      currentUrl: location.href,
+      documentTitle: document.title,
+      visibleTextPreview,
+      selectedText: getJimaSelectedText(),
+      headings,
+      links,
+      fileLinks,
+      limits: JIMA_CONTEXT_LIMITS
+    }
+  };
+}
+
+if (chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== "JIMA_GET_MOODLE_CONTEXT") {
+      return false;
+    }
+
+    try {
+      sendResponse(extractJimaMoodleContext());
+    } catch (error) {
+      sendResponse({
+        ok: false,
+        error: error?.message || "Jima could not extract page context."
+      });
+    }
+
+    return false;
+  });
+}
+
 
 async function getCourses() {
   const data = await chrome.storage.local.get(STORAGE_COURSES_KEY);
