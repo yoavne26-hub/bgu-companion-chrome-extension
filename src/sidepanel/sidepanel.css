@@ -191,19 +191,39 @@ h1 {
   padding: 14px;
 }
 
-.course-query-panel h2 {
+.followup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.course-query-panel h2,
+.followup-panel h2 {
   color: var(--text);
   font-size: 16px;
   line-height: 1.2;
 }
 
-.course-query-row {
+.followup-note,
+.followup-summary {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.course-query-row,
+.followup-row {
   display: flex;
   flex-direction: column;
   gap: 9px;
 }
 
-#courseQueryInput {
+#courseQueryInput,
+#followupInput {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -216,9 +236,16 @@ h1 {
   outline: none;
 }
 
-#courseQueryInput:focus {
+#courseQueryInput:focus,
+#followupInput:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+}
+
+.followup-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .course-match-list {
@@ -288,6 +315,7 @@ h1 {
 .ai-panel[hidden],
 .ai-results[hidden],
 .download-controls[hidden],
+.followup-results[hidden],
 .assignment-detail-panel[hidden],
 .assignment-detail-content[hidden] {
   display: none;
@@ -562,6 +590,7 @@ h1 {
 }
 
 .task-action-btn,
+.quiet-action,
 .saved-task-actions button,
 .saved-task-actions a {
   border: 1px solid rgba(37, 99, 235, 0.2);
@@ -577,6 +606,7 @@ h1 {
 }
 
 .task-action-btn:hover,
+.quiet-action:hover,
 .saved-task-actions button:hover,
 .saved-task-actions a:hover {
   border-color: rgba(249, 115, 22, 0.38);
@@ -606,6 +636,12 @@ h1 {
   color: #475569;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.followup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .assignment-detail-panel {

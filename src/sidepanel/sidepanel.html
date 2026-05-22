@@ -44,6 +44,41 @@
         This preview stays local. AI analysis will be added in a later phase.
       </div>
 
+      <section class="followup-panel" aria-labelledby="followupTitle">
+        <h2 id="followupTitle">Local follow-up</h2>
+        <p class="followup-note">
+          Ask about files from the latest checked page. Local follow-up routing does not use AI or send context anywhere.
+        </p>
+        <div class="followup-row">
+          <input
+            id="followupInput"
+            type="text"
+            placeholder="Ask a follow-up, e.g. Can you download the homework file?"
+            autocomplete="off"
+          />
+          <button id="followupSendBtn" class="secondary-action" type="button">Send</button>
+        </div>
+        <div id="followupStatus" class="status-message compact" role="status" aria-live="polite"></div>
+        <div id="followupResults" class="followup-results" hidden>
+          <p id="followupSummary" class="followup-summary"></p>
+          <ul id="followupFileList" class="candidate-list"></ul>
+          <div id="followupDownloadControls" class="download-controls" hidden>
+            <p class="download-note">
+              Downloads only start after you confirm. Jima has not read the file contents.
+            </p>
+            <div class="followup-actions">
+              <button id="downloadFollowupSelectedBtn" class="secondary-action" type="button" disabled>
+                Download selected files
+              </button>
+              <button id="cancelFollowupDownloadBtn" class="quiet-action" type="button">
+                Cancel
+              </button>
+            </div>
+            <div id="followupDownloadStatus" class="status-message compact" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
       <section id="previewPanel" class="preview-panel" aria-label="Local Moodle context preview" hidden>
         <div class="preview-header">
           <h2>Local Moodle Preview</h2>

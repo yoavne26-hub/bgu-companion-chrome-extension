@@ -51,14 +51,41 @@ const assignmentDetailDownloadControls = document.getElementById("assignmentDeta
 const downloadDetailSelectedBtn = document.getElementById("downloadDetailSelectedBtn");
 const assignmentDetailDownloadStatus = document.getElementById("assignmentDetailDownloadStatus");
 const assignmentDetailInstructions = document.getElementById("assignmentDetailInstructions");
+const followupInput = document.getElementById("followupInput");
+const followupSendBtn = document.getElementById("followupSendBtn");
+const followupStatus = document.getElementById("followupStatus");
+const followupResults = document.getElementById("followupResults");
+const followupSummary = document.getElementById("followupSummary");
+const followupFileList = document.getElementById("followupFileList");
+const followupDownloadControls = document.getElementById("followupDownloadControls");
+const downloadFollowupSelectedBtn = document.getElementById("downloadFollowupSelectedBtn");
+const cancelFollowupDownloadBtn = document.getElementById("cancelFollowupDownloadBtn");
+const followupDownloadStatus = document.getElementById("followupDownloadStatus");
 
 let latestPageContext = null;
 let latestDetections = null;
 let latestFileCandidates = [];
 let latestAssignmentDetailFiles = [];
+let latestFollowupFiles = [];
 let latestHomeworkCandidates = [];
 let latestSavedTasks = [];
 let latestCourseMatches = [];
+let latestAssignmentDetail = null;
+let latestActiveAssignmentTitle = "";
+let latestAiAnalysis = null;
+
+const jimaSessionMemory = {
+  latestAnalyzedCoursePageContext: null,
+  latestHomeworkCandidates: [],
+  latestCourseFileCandidates: [],
+  latestInspectedAssignmentDetail: null,
+  latestAssignmentFiles: [],
+  latestActiveAssignmentTitle: "",
+  latestAiResponse: null
+};
+
+const JIMA_FOLLOWUP_DOWNLOAD_PATTERN = /(download|save|get)\b.*\b(file|files|pdf|homework|assignment)|\b(file|files|pdf|homework|assignment)\b.*\b(download|save|get)|\u05d4\u05d5\u05e8\u05d3\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05d5\u05e8\u05d9\u05d3\s+\u05e7\u05d5\u05d1\u05e5|\u05dc\u05d4\u05d5\u05e8\u05d9\u05d3\s+\u05d0\u05ea\s+\u05d4\u05e7\u05d5\u05d1\u05e5|\u05e7\u05d5\u05d1\u05e5\s+\u05d4\u05de\u05d8\u05dc\u05d4|\u05e7\u05d5\u05d1\u05e5\s+\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d4\u05d1\u05d9\u05ea/i;
+const JIMA_FOLLOWUP_SHOW_FILES_PATTERN = /(show|list|what|which).*\b(file|files|pdf|resources?)\b|\b(file|files|resources?)\b.*(found|available|show|list)|\u05de\u05d4\s+\u05d4\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d0\u05d9\u05dc\u05d5\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d4\u05e6\u05d2\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05ea\u05e8\u05d0\u05d4\s+\u05e7\u05d1\u05e6\u05d9\u05dd/i;
 
 function setStatus(text, type = "") {
   if (!statusMessage) return;
@@ -102,6 +129,18 @@ function setAssignmentDetailDownloadStatus(text, type = "") {
   assignmentDetailDownloadStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
 }
 
+function setFollowupStatus(text, type = "") {
+  if (!followupStatus) return;
+  followupStatus.textContent = text;
+  followupStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
+}
+
+function setFollowupDownloadStatus(text, type = "") {
+  if (!followupDownloadStatus) return;
+  followupDownloadStatus.textContent = text;
+  followupDownloadStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
+}
+
 function setLoading(isLoading) {
   if (!analyzePageBtn) return;
   analyzePageBtn.disabled = isLoading;
@@ -130,6 +169,12 @@ function setAssignmentDetailDownloadLoading(isLoading) {
   if (!downloadDetailSelectedBtn) return;
   downloadDetailSelectedBtn.disabled = isLoading || getSelectedFileCandidates("detail").length === 0;
   downloadDetailSelectedBtn.textContent = isLoading ? "Starting downloads..." : "Download selected detail files";
+}
+
+function setFollowupDownloadLoading(isLoading) {
+  if (!downloadFollowupSelectedBtn) return;
+  downloadFollowupSelectedBtn.disabled = isLoading || getSelectedFileCandidates("followup").length === 0;
+  downloadFollowupSelectedBtn.textContent = isLoading ? "Starting downloads..." : getDownloadButtonBaseText("followup");
 }
 
 function clearList(listEl) {
@@ -318,6 +363,7 @@ async function openAndAnalyzeCourseMatch(matchIndex) {
   setCourseCheckButtonsDisabled(true);
   previewPanel.hidden = true;
   clearAssignmentDetail();
+  clearFollowupResults();
   aiPanel.hidden = true;
   aiResults.hidden = true;
   setCourseQueryStatus(`Opening ${match.name} and checking the visible Moodle page locally...`, "active");
@@ -391,9 +437,35 @@ function appendTaskAction(item, candidate, index) {
   item.appendChild(actions);
 }
 
+function getFileListElement(scope = "page") {
+  if (scope === "detail") return assignmentDetailFiles;
+  if (scope === "followup") return followupFileList;
+  return filesList;
+}
+
+function getFileCandidateSource(scope = "page") {
+  if (scope === "detail") return latestAssignmentDetailFiles;
+  if (scope === "followup") return latestFollowupFiles;
+  return latestFileCandidates;
+}
+
+function getDownloadButton(scope = "page") {
+  if (scope === "detail") return downloadDetailSelectedBtn;
+  if (scope === "followup") return downloadFollowupSelectedBtn;
+  return downloadSelectedBtn;
+}
+
+function getDownloadButtonBaseText(scope = "page") {
+  if (scope === "detail") return "Download selected detail files";
+  if (scope === "followup") {
+    return latestFollowupFiles.length === 1 ? "Download" : "Download selected files";
+  }
+  return "Download selected files";
+}
+
 function getSelectedFileCandidates(scope = "page") {
-  const listEl = scope === "detail" ? assignmentDetailFiles : filesList;
-  const source = scope === "detail" ? latestAssignmentDetailFiles : latestFileCandidates;
+  const listEl = getFileListElement(scope);
+  const source = getFileCandidateSource(scope);
   if (!listEl) return [];
 
   return Array.from(listEl.querySelectorAll(".file-select-input:checked"))
@@ -402,13 +474,13 @@ function getSelectedFileCandidates(scope = "page") {
 }
 
 function updateDownloadButtonState(scope = "page") {
-  const button = scope === "detail" ? downloadDetailSelectedBtn : downloadSelectedBtn;
+  const button = getDownloadButton(scope);
   if (!button) return;
 
   const selectedCount = getSelectedFileCandidates(scope).length;
-  const baseText = scope === "detail" ? "Download selected detail files" : "Download selected files";
+  const baseText = getDownloadButtonBaseText(scope);
   button.disabled = selectedCount === 0;
-  button.textContent = selectedCount > 0
+  button.textContent = selectedCount > 0 && !(scope === "followup" && latestFollowupFiles.length === 1)
     ? `${baseText} (${selectedCount})`
     : baseText;
 }
@@ -454,6 +526,136 @@ function createFileCandidateCard(candidate, index, scope = "page") {
   item.appendChild(selectWrapper);
   item.appendChild(body);
   return item;
+}
+
+function createReadOnlyFileCandidateCard(candidate) {
+  const title = candidate.fileType
+    ? `${candidate.name || "Moodle file"} (${candidate.fileType})`
+    : candidate.name || "Moodle file";
+  const item = createCandidateCard(title, candidate.confidence, candidate.url);
+  appendCandidateText(item, "candidate-evidence", candidate.evidence ? `Evidence: ${candidate.evidence}` : "");
+  appendCandidateText(item, "candidate-uncertainty", "File candidate only. Jima has not read the file contents.");
+  return item;
+}
+
+function clearFollowupResults() {
+  latestFollowupFiles = [];
+  if (followupResults) followupResults.hidden = true;
+  if (followupDownloadControls) followupDownloadControls.hidden = true;
+  if (followupSummary) followupSummary.textContent = "";
+  if (followupFileList) clearList(followupFileList);
+  setFollowupDownloadStatus("", "");
+}
+
+function getLatestFollowupFileSource() {
+  if (jimaSessionMemory.latestAssignmentFiles.length > 0) {
+    return {
+      source: "assignment",
+      label: latestActiveAssignmentTitle
+        ? `the latest inspected assignment (${latestActiveAssignmentTitle})`
+        : "the latest inspected assignment",
+      files: jimaSessionMemory.latestAssignmentFiles
+    };
+  }
+
+  if (jimaSessionMemory.latestCourseFileCandidates.length > 0) {
+    return {
+      source: "course",
+      label: "the latest checked course page",
+      files: jimaSessionMemory.latestCourseFileCandidates
+    };
+  }
+
+  return {
+    source: "",
+    label: "",
+    files: []
+  };
+}
+
+function renderFollowupFiles(fileSource, mode) {
+  const files = (fileSource.files || []).filter((file) => file?.url);
+  latestFollowupFiles = files;
+  clearList(followupFileList);
+  if (followupResults) followupResults.hidden = false;
+  setFollowupDownloadStatus("", "");
+
+  if (files.length === 0) {
+    if (followupResults) followupResults.hidden = true;
+    if (followupDownloadControls) followupDownloadControls.hidden = true;
+    setFollowupStatus(
+      "I do not have a file candidate from the latest checked page yet. Check assignment details first.",
+      "error"
+    );
+    return;
+  }
+
+  const sourceLabel = fileSource.label || "the latest checked page";
+  const contentNote = "These are file candidates, not file contents. I have not read the file contents.";
+  if (mode === "download") {
+    followupSummary.textContent = files.length === 1
+      ? `I found one likely file from ${sourceLabel}: ${files[0].name || "Moodle file"}. Download it? ${contentNote}`
+      : `I found ${files.length} file candidates from ${sourceLabel}. Select what to download. ${contentNote}`;
+
+    for (const [index, file] of files.entries()) {
+      const item = createFileCandidateCard(file, index, "followup");
+      const checkbox = item.querySelector(".file-select-input");
+      if (files.length === 1 && checkbox) checkbox.checked = true;
+      followupFileList.appendChild(item);
+    }
+
+    if (followupDownloadControls) followupDownloadControls.hidden = false;
+    updateDownloadButtonState("followup");
+    setFollowupStatus("Confirm before downloading. Nothing starts until you click Download.", "active");
+    return;
+  }
+
+  followupSummary.textContent = `From ${sourceLabel}, I found these file candidates. ${contentNote}`;
+  for (const file of files) {
+    followupFileList.appendChild(createReadOnlyFileCandidateCard(file));
+  }
+  if (followupDownloadControls) followupDownloadControls.hidden = true;
+  setFollowupStatus("Showing latest local file candidates.", "success");
+}
+
+function getFollowupIntent(query) {
+  const text = String(query || "").replace(/\s+/g, " ").trim();
+  if (!text) return "empty";
+  if (JIMA_FOLLOWUP_DOWNLOAD_PATTERN.test(text)) return "download_files";
+  if (JIMA_FOLLOWUP_SHOW_FILES_PATTERN.test(text)) return "show_files";
+  return "unsupported";
+}
+
+function handleFollowupMessage() {
+  const query = followupInput?.value.trim() || "";
+  const intent = getFollowupIntent(query);
+
+  if (intent === "empty") {
+    setFollowupStatus("Type a local follow-up first.", "error");
+    return;
+  }
+
+  if (intent === "download_files" || intent === "show_files") {
+    const fileSource = getLatestFollowupFileSource();
+    renderFollowupFiles(fileSource, intent === "download_files" ? "download" : "show");
+    return;
+  }
+
+  clearFollowupResults();
+  setFollowupStatus(
+    "I can currently help with showing or downloading files from the latest checked page. AI follow-up chat will come later.",
+    "error"
+  );
+}
+
+function cancelFollowupDownload() {
+  if (followupDownloadControls) followupDownloadControls.hidden = true;
+  for (const checkbox of Array.from(followupFileList?.querySelectorAll(".file-select-input") || [])) {
+    checkbox.checked = false;
+  }
+  updateDownloadButtonState("followup");
+  setFollowupDownloadStatus("", "");
+  setFollowupStatus("Download canceled. No files were downloaded.", "success");
 }
 
 function renderHeadings(headings) {
@@ -553,6 +755,11 @@ function renderFileCandidates(candidates) {
 
 function clearAssignmentDetail() {
   latestAssignmentDetailFiles = [];
+  latestAssignmentDetail = null;
+  latestActiveAssignmentTitle = "";
+  jimaSessionMemory.latestInspectedAssignmentDetail = null;
+  jimaSessionMemory.latestAssignmentFiles = [];
+  jimaSessionMemory.latestActiveAssignmentTitle = "";
   if (assignmentDetailPanel) assignmentDetailPanel.hidden = true;
   if (assignmentDetailContent) assignmentDetailContent.hidden = true;
   setAssignmentDetailStatus("", "");
@@ -615,6 +822,12 @@ function renderAssignmentDetailStatus(status) {
 function renderAssignmentDetail(detail) {
   if (!assignmentDetailPanel || !assignmentDetailContent) return;
 
+  latestAssignmentDetail = detail;
+  latestActiveAssignmentTitle = detail.title || latestActiveAssignmentTitle || "";
+  jimaSessionMemory.latestInspectedAssignmentDetail = detail;
+  jimaSessionMemory.latestAssignmentFiles = (detail.files || []).filter((file) => file?.url);
+  jimaSessionMemory.latestActiveAssignmentTitle = latestActiveAssignmentTitle;
+
   assignmentDetailPanel.hidden = false;
   assignmentDetailContent.hidden = false;
   assignmentDetailTitle.textContent = detail.title || "Assignment detail page";
@@ -660,6 +873,10 @@ function renderContext(pageContext, detections) {
   renderHeadings(headings);
   renderFileLinks(fileLinks);
   clearAssignmentDetail();
+  clearFollowupResults();
+  jimaSessionMemory.latestAnalyzedCoursePageContext = pageContext;
+  jimaSessionMemory.latestHomeworkCandidates = latestDetections.homeworkCandidates || [];
+  jimaSessionMemory.latestCourseFileCandidates = latestFileCandidates;
 
   previewPanel.hidden = false;
   aiPanel.hidden = false;
@@ -728,6 +945,8 @@ function renderPlainList(listEl, items, emptyText) {
 }
 
 function renderAiAnalysis(analysis) {
+  latestAiAnalysis = analysis;
+  jimaSessionMemory.latestAiResponse = analysis;
   aiSummary.textContent = analysis.summary || "Jima returned no summary.";
   renderAiAssignments(analysis.assignments || []);
   renderAiDates(analysis.dates || []);
@@ -872,7 +1091,11 @@ function inspectAssignmentDetail(candidateIndex) {
   if (assignmentDetailPanel) assignmentDetailPanel.hidden = false;
   if (assignmentDetailContent) assignmentDetailContent.hidden = true;
   latestAssignmentDetailFiles = [];
+  latestAssignmentDetail = null;
+  latestActiveAssignmentTitle = candidate.title || "Selected assignment";
+  jimaSessionMemory.latestActiveAssignmentTitle = latestActiveAssignmentTitle;
   setAssignmentDetailDownloadStatus("", "");
+  clearFollowupResults();
   setDetailButtonsDisabled(true);
   setAssignmentDetailStatus("Opening the selected assignment detail page and checking visible evidence locally...", "active");
 
@@ -929,10 +1152,24 @@ function analyzeCurrentPage() {
   latestDetections = null;
   latestFileCandidates = [];
   latestAssignmentDetailFiles = [];
+  latestFollowupFiles = [];
   latestHomeworkCandidates = [];
+  latestAssignmentDetail = null;
+  latestActiveAssignmentTitle = "";
+  latestAiAnalysis = null;
+  Object.assign(jimaSessionMemory, {
+    latestAnalyzedCoursePageContext: null,
+    latestHomeworkCandidates: [],
+    latestCourseFileCandidates: [],
+    latestInspectedAssignmentDetail: null,
+    latestAssignmentFiles: [],
+    latestActiveAssignmentTitle: "",
+    latestAiResponse: null
+  });
   setLoading(true);
   previewPanel.hidden = true;
   clearAssignmentDetail();
+  clearFollowupResults();
   downloadControls.hidden = true;
   aiPanel.hidden = true;
   aiResults.hidden = true;
@@ -1017,6 +1254,17 @@ function renderScopedDownloadResult(response, scope = "page") {
     return;
   }
 
+  if (scope === "followup") {
+    setFollowupDownloadStatus(message, started > 0 && failed === 0 ? "success" : "error");
+    setFollowupStatus(
+      started > 0
+        ? "Confirmed. Chrome is handling the selected download request."
+        : "No downloads were started.",
+      started > 0 && failed === 0 ? "success" : "error"
+    );
+    return;
+  }
+
   setDownloadStatus(message, started > 0 && failed === 0 ? "success" : "error");
 }
 
@@ -1025,6 +1273,8 @@ function downloadSelectedFiles(scope = "page") {
   if (selectedFiles.length === 0) {
     if (scope === "detail") {
       setAssignmentDetailDownloadStatus("Select at least one detail-page file before downloading.", "error");
+    } else if (scope === "followup") {
+      setFollowupDownloadStatus("Select at least one file before downloading.", "error");
     } else {
       setDownloadStatus("Select at least one file before downloading.", "error");
     }
@@ -1035,6 +1285,9 @@ function downloadSelectedFiles(scope = "page") {
   if (scope === "detail") {
     setAssignmentDetailDownloadLoading(true);
     setAssignmentDetailDownloadStatus("Starting selected detail-page downloads in Chrome...", "active");
+  } else if (scope === "followup") {
+    setFollowupDownloadLoading(true);
+    setFollowupDownloadStatus("Starting selected downloads in Chrome...", "active");
   } else {
     setDownloadLoading(true);
     setDownloadStatus("Starting selected downloads in Chrome...", "active");
@@ -1054,6 +1307,8 @@ function downloadSelectedFiles(scope = "page") {
     (response) => {
       if (scope === "detail") {
         setAssignmentDetailDownloadLoading(false);
+      } else if (scope === "followup") {
+        setFollowupDownloadLoading(false);
       } else {
         setDownloadLoading(false);
       }
@@ -1063,6 +1318,8 @@ function downloadSelectedFiles(scope = "page") {
         const error = chrome.runtime.lastError.message || "Jima could not start downloads.";
         if (scope === "detail") {
           setAssignmentDetailDownloadStatus(error, "error");
+        } else if (scope === "followup") {
+          setFollowupDownloadStatus(error, "error");
         } else {
           setDownloadStatus(error, "error");
         }
@@ -1150,6 +1407,36 @@ if (assignmentDetailFiles) {
 
 if (downloadDetailSelectedBtn) {
   downloadDetailSelectedBtn.addEventListener("click", () => downloadSelectedFiles("detail"));
+}
+
+if (followupSendBtn) {
+  followupSendBtn.addEventListener("click", handleFollowupMessage);
+}
+
+if (followupInput) {
+  followupInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleFollowupMessage();
+    }
+  });
+}
+
+if (followupFileList) {
+  followupFileList.addEventListener("change", (event) => {
+    if (event.target?.classList?.contains("file-select-input")) {
+      updateDownloadButtonState("followup");
+      setFollowupDownloadStatus("", "");
+    }
+  });
+}
+
+if (downloadFollowupSelectedBtn) {
+  downloadFollowupSelectedBtn.addEventListener("click", () => downloadSelectedFiles("followup"));
+}
+
+if (cancelFollowupDownloadBtn) {
+  cancelFollowupDownloadBtn.addEventListener("click", cancelFollowupDownload);
 }
 
 if (savedTasksList) {

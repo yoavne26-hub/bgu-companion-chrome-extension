@@ -65,6 +65,8 @@ Saved-course lookup and single-course Moodle checks are also handled locally by 
 
 Assignment detail inspection is also local and user-triggered. After local homework candidates appear, the extension can open one selected Moodle assignment/detail link and inspect visible status, date, instruction, and file evidence. This does not call the backend, does not read hidden browser data, and does not send detail-page context to OpenAI unless a future explicit AI action is added for that purpose.
 
+Local follow-up routing in the side panel is also handled entirely by the Chrome Extension. It can recognize simple file-related requests, such as showing or downloading files from the latest checked page, without using AI. Downloads still require explicit user confirmation and continue to use the extension's safe selected-file download flow.
+
 ## Endpoints
 
 ### GET /health
@@ -120,4 +122,5 @@ If `OPENAI_API_KEY` is missing, the endpoint returns a clear configuration error
 - Saved Jima tasks stay local in browser storage and are not synced through this backend.
 - Saved-course matching and single-course scans are local extension actions and do not call this backend.
 - Assignment detail checks are local extension actions and do not call this backend.
+- Local follow-up action routing is local and does not call this backend or OpenAI.
 - CORS is not enabled because the extension routes local backend calls through its background service worker with a narrow localhost host permission.
