@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { JIMA_SYSTEM_PROMPT } from "./jimaSystemPrompt.js";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
-const MAX_OUTPUT_TOKENS = 1200;
+const MAX_OUTPUT_TOKENS = 800;
 
 const jimaAnalysisSchema = {
   type: "object",
