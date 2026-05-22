@@ -11,6 +11,8 @@ const btnGezer = document.getElementById("btnGezer");
 const btnInfo = document.getElementById("btnInfo");
 const btnPortal = document.getElementById("btnPortal");
 const btnJima = document.getElementById("btnJima");
+const btnJimaTasks = document.getElementById("btnJimaTasks");
+const jimaTasksSummary = document.getElementById("jimaTasksSummary");
 const titleText = document.getElementById("titleText");
 const viewMain = document.getElementById("view-main");
 const viewCourses = document.getElementById("view-courses");
@@ -68,6 +70,23 @@ function openJimaSidePanel() {
       window.close();
     });
   });
+}
+
+async function updateJimaTasksSummary() {
+  if (!jimaTasksSummary || !globalThis.JimaTasks) return;
+
+  const tasks = await globalThis.JimaTasks.getTasks();
+  const openCount = globalThis.JimaTasks.getOpenTaskCount(tasks);
+  const doneCount = tasks.length - openCount;
+
+  if (tasks.length === 0) {
+    jimaTasksSummary.textContent = "No open saved tasks";
+    return;
+  }
+
+  jimaTasksSummary.textContent = doneCount > 0
+    ? `${openCount} open, ${doneCount} done`
+    : `${openCount} open`;
 }
 
 async function getCourses() {
@@ -147,6 +166,10 @@ if (btnJima) {
   btnJima.addEventListener("click", openJimaSidePanel);
 }
 
+if (btnJimaTasks) {
+  btnJimaTasks.addEventListener("click", openJimaSidePanel);
+}
+
 if (btnBack) {
   btnBack.addEventListener("click", () => {
     setMessage("");
@@ -171,3 +194,20 @@ setView("main");
 getCoursesWithSeed().catch(() => {
   setMessage("Storage permission missing. Add 'storage' to manifest.", "error");
 });
+
+updateJimaTasksSummary().catch(() => {
+  if (jimaTasksSummary) {
+    jimaTasksSummary.textContent = "Tasks unavailable";
+  }
+});
+
+if (chrome.storage?.onChanged && globalThis.JimaTasks) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes[globalThis.JimaTasks.storageKey]) return;
+    updateJimaTasksSummary().catch(() => {
+      if (jimaTasksSummary) {
+        jimaTasksSummary.textContent = "Tasks unavailable";
+      }
+    });
+  });
+}

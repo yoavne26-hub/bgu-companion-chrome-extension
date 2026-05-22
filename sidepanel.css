@@ -458,6 +458,39 @@ h1 {
   color: #9a3412;
 }
 
+.candidate-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 9px;
+}
+
+.task-action-btn,
+.saved-task-actions button,
+.saved-task-actions a {
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 10px;
+  padding: 7px 9px;
+  background: #ffffff;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.task-action-btn:hover,
+.saved-task-actions button:hover,
+.saved-task-actions a:hover {
+  border-color: rgba(249, 115, 22, 0.38);
+  color: var(--accent-dark);
+}
+
+.task-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .empty-row {
   color: var(--muted);
   font-style: italic;
@@ -482,6 +515,102 @@ h1 {
   min-height: 0;
   padding: 9px 10px;
   font-size: 12px;
+}
+
+.saved-tasks-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.saved-tasks-header h2 {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.saved-tasks-header h2 span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.saved-tasks-header p {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.saved-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved-task-card {
+  padding: 10px;
+  border: 1px solid rgba(219, 229, 241, 0.9);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.saved-task-card.is-done {
+  opacity: 0.76;
+}
+
+.saved-task-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.saved-task-title-row strong {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.task-status {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.task-status.open {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.task-status.done {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.saved-task-meta {
+  margin-top: 6px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.saved-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
 }
 
 .text-preview {

@@ -126,6 +126,17 @@
           <p id="textPreview" class="text-preview"></p>
         </div>
       </section>
+
+      <section class="saved-tasks-panel" aria-labelledby="savedTasksTitle">
+        <div class="saved-tasks-header">
+          <div>
+            <h2 id="savedTasksTitle">Saved tasks <span id="savedTasksCount"></span></h2>
+            <p>Saved Jima tasks are stored locally in this browser.</p>
+          </div>
+        </div>
+        <ul id="savedTasksList" class="saved-tasks-list"></ul>
+        <div id="savedTasksStatus" class="status-message compact" role="status" aria-live="polite"></div>
+      </section>
     </section>
 
     <section class="privacy-card">
@@ -134,6 +145,7 @@
     </section>
   </main>
 
+  <script src="jima-tasks.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

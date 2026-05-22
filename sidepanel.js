@@ -32,10 +32,15 @@ const aiDates = document.getElementById("aiDates");
 const aiFiles = document.getElementById("aiFiles");
 const aiNextActions = document.getElementById("aiNextActions");
 const aiUncertainties = document.getElementById("aiUncertainties");
+const savedTasksCount = document.getElementById("savedTasksCount");
+const savedTasksList = document.getElementById("savedTasksList");
+const savedTasksStatus = document.getElementById("savedTasksStatus");
 
 let latestPageContext = null;
 let latestDetections = null;
 let latestFileCandidates = [];
+let latestHomeworkCandidates = [];
+let latestSavedTasks = [];
 
 function setStatus(text, type = "") {
   if (!statusMessage) return;
@@ -53,6 +58,12 @@ function setDownloadStatus(text, type = "") {
   if (!downloadStatusMessage) return;
   downloadStatusMessage.textContent = text;
   downloadStatusMessage.className = `status-message compact${type ? ` is-${type}` : ""}`;
+}
+
+function setSavedTasksStatus(text, type = "") {
+  if (!savedTasksStatus) return;
+  savedTasksStatus.textContent = text;
+  savedTasksStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
 }
 
 function setLoading(isLoading) {
@@ -143,6 +154,26 @@ function appendCandidateText(item, className, text) {
   line.className = className;
   line.textContent = text;
   item.appendChild(line);
+}
+
+function appendTaskAction(item, candidate, index) {
+  const actions = document.createElement("div");
+  actions.className = "candidate-actions";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "task-action-btn save-task-btn";
+  button.dataset.candidateIndex = String(index);
+
+  const draft = globalThis.JimaTasks?.createTaskFromCandidate(candidate, latestPageContext || {});
+  const isSaved = draft
+    ? latestSavedTasks.some((task) => globalThis.JimaTasks.isDuplicateTask(task, draft))
+    : false;
+
+  button.textContent = isSaved ? "Saved" : "Save task";
+  button.disabled = isSaved || !globalThis.JimaTasks;
+  actions.appendChild(button);
+  item.appendChild(actions);
 }
 
 function getSelectedFileCandidates() {
@@ -237,6 +268,7 @@ function renderFileLinks(fileLinks) {
 
 function renderHomeworkCandidates(candidates) {
   clearList(homeworkList);
+  latestHomeworkCandidates = candidates;
   homeworkCount.textContent = `(${candidates.length})`;
 
   if (candidates.length === 0) {
@@ -244,11 +276,12 @@ function renderHomeworkCandidates(candidates) {
     return;
   }
 
-  for (const candidate of candidates) {
+  for (const [index, candidate] of candidates.entries()) {
     const item = createCandidateCard(candidate.title || "Possible homework", candidate.confidence, candidate.url);
     appendCandidateText(item, "candidate-meta", candidate.type ? `Type: ${candidate.type}` : "");
     appendCandidateText(item, "candidate-evidence", candidate.evidence ? `Evidence: ${candidate.evidence}` : "");
     appendCandidateText(item, "candidate-uncertainty", candidate.uncertainty);
+    appendTaskAction(item, candidate, index);
     homeworkList.appendChild(item);
   }
 }
@@ -398,6 +431,137 @@ function renderAiAnalysis(analysis) {
   aiResults.hidden = false;
 }
 
+function createSavedTaskCard(task) {
+  const item = document.createElement("li");
+  item.className = `saved-task-card${task.status === "done" ? " is-done" : ""}`;
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "saved-task-title-row";
+
+  const title = document.createElement("strong");
+  title.textContent = task.title || "Saved possible task";
+  titleRow.appendChild(title);
+
+  const status = document.createElement("span");
+  status.className = `task-status ${task.status === "done" ? "done" : "open"}`;
+  status.textContent = task.status === "done" ? "Done" : "Open";
+  titleRow.appendChild(status);
+  item.appendChild(titleRow);
+
+  const meta = document.createElement("div");
+  meta.className = "saved-task-meta";
+  const parts = [
+    task.courseOrPage,
+    task.dueDateRaw ? `Date clue: ${task.dueDateRaw}` : "",
+    task.confidence ? `Confidence: ${task.confidence}` : ""
+  ].filter(Boolean);
+  meta.textContent = parts.join(" | ");
+  item.appendChild(meta);
+
+  if (task.evidence) {
+    const evidence = document.createElement("div");
+    evidence.className = "candidate-evidence";
+    evidence.textContent = `Evidence: ${task.evidence}`;
+    item.appendChild(evidence);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "saved-task-actions";
+
+  const openUrl = task.candidateUrl || task.sourceUrl;
+  if (openUrl) {
+    const openLink = document.createElement("a");
+    openLink.href = openUrl;
+    openLink.target = "_blank";
+    openLink.rel = "noreferrer";
+    openLink.textContent = "Open source";
+    actions.appendChild(openLink);
+  }
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.dataset.taskAction = task.status === "done" ? "reopen" : "done";
+  toggle.dataset.taskId = task.id;
+  toggle.textContent = task.status === "done" ? "Reopen" : "Mark done";
+  actions.appendChild(toggle);
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.dataset.taskAction = "delete";
+  del.dataset.taskId = task.id;
+  del.textContent = "Delete";
+  actions.appendChild(del);
+
+  item.appendChild(actions);
+  return item;
+}
+
+function renderSavedTasks(tasks) {
+  clearList(savedTasksList);
+  const openCount = globalThis.JimaTasks?.getOpenTaskCount(tasks) || 0;
+  savedTasksCount.textContent = `(${openCount} open / ${tasks.length} total)`;
+
+  if (tasks.length === 0) {
+    appendEmptyRow(savedTasksList, "No saved Jima tasks yet.");
+    return;
+  }
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+  });
+
+  for (const task of sortedTasks) {
+    savedTasksList.appendChild(createSavedTaskCard(task));
+  }
+}
+
+async function refreshSavedTasks(rerenderCandidates = false) {
+  if (!globalThis.JimaTasks) {
+    setSavedTasksStatus("Local task storage is not available.", "error");
+    return;
+  }
+
+  latestSavedTasks = await globalThis.JimaTasks.getTasks();
+  renderSavedTasks(latestSavedTasks);
+
+  if (rerenderCandidates && latestDetections) {
+    renderHomeworkCandidates(latestDetections.homeworkCandidates || []);
+  }
+}
+
+async function saveHomeworkCandidate(candidateIndex) {
+  const candidate = latestHomeworkCandidates[Number(candidateIndex)];
+  if (!candidate || !globalThis.JimaTasks) {
+    setSavedTasksStatus("Could not save this possible task.", "error");
+    return;
+  }
+
+  const task = globalThis.JimaTasks.createTaskFromCandidate(candidate, latestPageContext || {});
+  const result = await globalThis.JimaTasks.saveTask(task);
+  latestSavedTasks = result.tasks;
+  renderSavedTasks(latestSavedTasks);
+  renderHomeworkCandidates(latestHomeworkCandidates);
+  setSavedTasksStatus(result.duplicate ? "This possible task was already saved." : "Saved possible task locally.", "success");
+}
+
+async function handleSavedTaskAction(action, taskId) {
+  if (!globalThis.JimaTasks || !taskId) return;
+
+  if (action === "delete") {
+    latestSavedTasks = await globalThis.JimaTasks.deleteTask(taskId);
+    setSavedTasksStatus("Deleted saved task.", "success");
+  } else {
+    latestSavedTasks = await globalThis.JimaTasks.updateTaskStatus(taskId, action === "done" ? "done" : "open");
+    setSavedTasksStatus(action === "done" ? "Marked task done." : "Reopened task.", "success");
+  }
+
+  renderSavedTasks(latestSavedTasks);
+  if (latestDetections) {
+    renderHomeworkCandidates(latestDetections.homeworkCandidates || []);
+  }
+}
+
 function analyzeCurrentPage() {
   if (!chrome.runtime?.sendMessage) {
     setStatus("Jima messaging is not available in this browser context.", "error");
@@ -407,6 +571,7 @@ function analyzeCurrentPage() {
   latestPageContext = null;
   latestDetections = null;
   latestFileCandidates = [];
+  latestHomeworkCandidates = [];
   setLoading(true);
   previewPanel.hidden = true;
   downloadControls.hidden = true;
@@ -531,6 +696,17 @@ if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);
 }
 
+if (homeworkList) {
+  homeworkList.addEventListener("click", (event) => {
+    const button = event.target?.closest?.(".save-task-btn");
+    if (button) {
+      saveHomeworkCandidate(button.dataset.candidateIndex).catch(() => {
+        setSavedTasksStatus("Could not save this possible task.", "error");
+      });
+    }
+  });
+}
+
 if (askAiBtn) {
   askAiBtn.addEventListener("click", askJimaWithAi);
 }
@@ -547,3 +723,27 @@ if (filesList) {
 if (downloadSelectedBtn) {
   downloadSelectedBtn.addEventListener("click", downloadSelectedFiles);
 }
+
+if (savedTasksList) {
+  savedTasksList.addEventListener("click", (event) => {
+    const control = event.target?.closest?.("[data-task-action]");
+    if (!control) return;
+
+    handleSavedTaskAction(control.dataset.taskAction, control.dataset.taskId).catch(() => {
+      setSavedTasksStatus("Could not update this saved task.", "error");
+    });
+  });
+}
+
+if (chrome.storage?.onChanged && globalThis.JimaTasks) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes[globalThis.JimaTasks.storageKey]) return;
+    refreshSavedTasks(true).catch(() => {
+      setSavedTasksStatus("Could not refresh saved tasks.", "error");
+    });
+  });
+}
+
+refreshSavedTasks().catch(() => {
+  setSavedTasksStatus("Could not load saved tasks.", "error");
+});

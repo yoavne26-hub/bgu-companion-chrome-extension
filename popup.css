@@ -227,6 +227,52 @@ body {
   line-height: 1.4;
 }
 
+.jima-tasks-card {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.jima-tasks-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.jima-tasks-summary {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.jima-tasks-action {
+  flex: 0 0 auto;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 11px;
+  padding: 8px 10px;
+  background: white;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.jima-tasks-action:hover {
+  border-color: rgba(249, 115, 22, 0.38);
+  color: var(--accent-2-dark);
+  transform: translateY(-1px);
+}
+
 /* Course search view */
 .view[hidden] { display: none; }
 
