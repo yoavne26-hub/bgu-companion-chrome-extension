@@ -1,4 +1,5 @@
 const JIMA_SAVED_TASKS_KEY = "jimaSavedTasks";
+const JIMA_TASK_LIKE_PATTERN = /(homework|assignment|task|submit|submission|due|deadline|exercise|project|quiz|lab|\/mod\/(?:assign|quiz|workshop)\/view\.php|\u05de\u05d8\u05dc\u05d4|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05de\u05d5\u05e2\u05d3\s+\u05d4\u05d2\u05e9\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df|\u05e4\u05e8\u05d5\u05d9\u05d9\u05e7\u05d8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e2\u05d1\u05d3\u05d4)/i;
 
 function normalizeJimaTaskText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -42,6 +43,19 @@ function sanitizeJimaTaskFiles(files) {
   return Array.isArray(files)
     ? files.filter((file) => file?.url).slice(0, 30).map(sanitizeJimaTaskFile)
     : [];
+}
+
+function isJimaTaskLikeCandidate(candidate = {}) {
+  const evidenceText = [
+    candidate.title,
+    candidate.name,
+    candidate.type,
+    candidate.evidence,
+    candidate.fileType,
+    candidate.url
+  ].filter(Boolean).join(" ");
+
+  return JIMA_TASK_LIKE_PATTERN.test(evidenceText);
 }
 
 function extractJimaTaskDueDate(value) {
@@ -289,6 +303,7 @@ globalThis.JimaTasks = Object.freeze({
   getOpenTaskCount: getJimaOpenTaskCount,
   getTasks: getJimaSavedTasks,
   isDuplicateTask: isDuplicateJimaTask,
+  isTaskLikeCandidate: isJimaTaskLikeCandidate,
   isRelatedTask: isRelatedJimaTask,
   saveTask: saveJimaTask,
   saveOrUpdateTaskFromDetail: saveOrUpdateJimaTaskFromDetail,

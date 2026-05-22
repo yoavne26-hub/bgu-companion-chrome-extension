@@ -17,235 +17,279 @@
     </section>
 
     <section class="content-card">
-      <p class="intro">
-        Open a Moodle page and Jima will help you identify assignments, deadlines, files, and next steps.
-      </p>
+      <section class="chat-panel" aria-labelledby="chatTitle">
+        <div class="chat-heading">
+          <div>
+            <h2 id="chatTitle">Chat with Jima</h2>
+            <p>Ask about the current Moodle page, a saved course, or files Jima already found.</p>
+          </div>
+        </div>
 
-      <section class="course-query-panel" aria-labelledby="courseQueryTitle">
-        <h2 id="courseQueryTitle">Ask about a saved course</h2>
-        <div class="course-query-row">
+        <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+
+        <div class="suggested-actions" aria-label="Suggested actions">
+          <button class="suggested-chip" type="button" data-chat-action="analyze">Analyze current Moodle page</button>
+          <button class="suggested-chip" type="button" data-chat-action="homework">Do I have homework in this course?</button>
+          <button class="suggested-chip" type="button" data-chat-action="files">Show files on this page</button>
+          <button class="suggested-chip" type="button" data-chat-action="ai">Ask Jima with AI</button>
+        </div>
+
+        <div class="chat-compose">
           <input
-            id="courseQueryInput"
+            id="chatInput"
             type="text"
-            placeholder="Ask about a course, e.g. Do I have homework in מימון?"
+            placeholder="Ask Jima, e.g. Do I have homework in Finance?"
             autocomplete="off"
           />
-          <button id="findCourseBtn" class="secondary-action" type="button">Find course</button>
+          <button id="chatSendBtn" class="primary-action" type="button">Send</button>
         </div>
-        <div id="courseQueryStatus" class="status-message compact" role="status" aria-live="polite"></div>
-        <ul id="courseMatchesList" class="course-match-list"></ul>
-      </section>
 
-      <button id="analyzePageBtn" class="primary-action" type="button">
-        Analyze current Moodle page
-      </button>
-
-      <div id="statusMessage" class="status-message" role="status" aria-live="polite">
-        This preview stays local. AI analysis will be added in a later phase.
-      </div>
-
-      <section class="followup-panel" aria-labelledby="followupTitle">
-        <h2 id="followupTitle">Local follow-up</h2>
-        <p class="followup-note">
-          Ask about files from the latest checked page. Local follow-up routing does not use AI or send context anywhere.
-        </p>
-        <div class="followup-row">
-          <input
-            id="followupInput"
-            type="text"
-            placeholder="Ask a follow-up, e.g. Can you download the homework file?"
-            autocomplete="off"
-          />
-          <button id="followupSendBtn" class="secondary-action" type="button">Send</button>
-        </div>
-        <div id="followupStatus" class="status-message compact" role="status" aria-live="polite"></div>
-        <div id="followupResults" class="followup-results" hidden>
-          <p id="followupSummary" class="followup-summary"></p>
-          <ul id="followupFileList" class="candidate-list"></ul>
-          <div id="followupDownloadControls" class="download-controls" hidden>
-            <p class="download-note">
-              Downloads only start after you confirm. Jima has not read the file contents.
-            </p>
-            <div class="followup-actions">
-              <button id="downloadFollowupSelectedBtn" class="secondary-action" type="button" disabled>
-                Download selected files
-              </button>
-              <button id="cancelFollowupDownloadBtn" class="quiet-action" type="button">
-                Cancel
-              </button>
+        <div id="chatActionArea" class="chat-action-area">
+          <div id="followupResults" class="followup-results" hidden>
+            <p id="followupSummary" class="followup-summary"></p>
+            <ul id="followupFileList" class="candidate-list"></ul>
+            <div id="followupDownloadControls" class="download-controls" hidden>
+              <p class="download-note">
+                Downloads only start after you confirm. Jima has not read the file contents.
+              </p>
+              <div class="followup-actions">
+                <button id="downloadFollowupSelectedBtn" class="secondary-action" type="button" disabled>
+                  Download selected files
+                </button>
+                <button id="cancelFollowupDownloadBtn" class="quiet-action" type="button">
+                  Cancel
+                </button>
+              </div>
+              <div id="followupDownloadStatus" class="status-message compact" role="status" aria-live="polite"></div>
             </div>
-            <div id="followupDownloadStatus" class="status-message compact" role="status" aria-live="polite"></div>
           </div>
         </div>
       </section>
 
-      <section id="previewPanel" class="preview-panel" aria-label="Local Moodle context preview" hidden>
-        <div class="preview-header">
-          <h2>Local Moodle Preview</h2>
-          <span id="previewMeta" class="preview-meta"></span>
+      <details class="secondary-details">
+        <summary>Course and local actions</summary>
+        <div class="secondary-details-body">
+          <p class="intro">
+            Open a Moodle page and Jima will help you identify assignments, deadlines, files, and next steps.
+          </p>
+
+          <section class="course-query-panel" aria-labelledby="courseQueryTitle">
+            <h2 id="courseQueryTitle">Ask about a saved course</h2>
+            <div class="course-query-row">
+              <input
+                id="courseQueryInput"
+                type="text"
+                placeholder="Ask about a course, e.g. Do I have homework in Finance?"
+                autocomplete="off"
+              />
+              <button id="findCourseBtn" class="secondary-action" type="button">Find course</button>
+            </div>
+            <div id="courseQueryStatus" class="status-message compact" role="status" aria-live="polite"></div>
+            <ul id="courseMatchesList" class="course-match-list"></ul>
+          </section>
+
+          <button id="analyzePageBtn" class="primary-action" type="button">
+            Analyze current Moodle page
+          </button>
+
+          <div id="statusMessage" class="status-message" role="status" aria-live="polite">
+            This preview stays local. AI analysis will be added in a later phase.
+          </div>
+
+          <section class="followup-panel" aria-labelledby="followupTitle">
+            <h2 id="followupTitle">Local follow-up</h2>
+            <p class="followup-note">
+              Ask about files from the latest checked page. Local follow-up routing does not use AI or send context anywhere.
+            </p>
+            <div class="followup-row">
+              <input
+                id="followupInput"
+                type="text"
+                placeholder="Ask a follow-up, e.g. Can you download the homework file?"
+                autocomplete="off"
+              />
+              <button id="followupSendBtn" class="secondary-action" type="button">Send</button>
+            </div>
+            <div id="followupStatus" class="status-message compact" role="status" aria-live="polite"></div>
+          </section>
         </div>
+      </details>
 
-        <div class="preview-field">
-          <span class="field-label">Page title</span>
-          <strong id="previewTitle"></strong>
-        </div>
+      <details id="evidenceDetails" class="secondary-details evidence-details" hidden>
+        <summary>Evidence and local scan details</summary>
+        <section id="previewPanel" class="preview-panel" aria-label="Local Moodle context preview" hidden>
+          <div class="preview-header">
+            <h2>Local Moodle Preview</h2>
+            <span id="previewMeta" class="preview-meta"></span>
+          </div>
 
-        <div class="preview-field">
-          <span class="field-label">URL</span>
-          <a id="previewUrl" class="preview-url" href="#"></a>
-        </div>
+          <div class="preview-field">
+            <span class="field-label">Page title</span>
+            <strong id="previewTitle"></strong>
+          </div>
 
-        <div class="local-note">
-          This detection is rule-based and stays local. AI analysis will be added in a later phase.
-        </div>
+          <div class="preview-field">
+            <span class="field-label">URL</span>
+            <a id="previewUrl" class="preview-url" href="#"></a>
+          </div>
 
-        <section id="localAnswerPanel" class="local-answer-panel" aria-labelledby="localAnswerTitle" hidden>
-          <h2 id="localAnswerTitle">Jima's local answer</h2>
-          <p id="localAnswerText"></p>
-          <ul id="localAnswerList" class="local-answer-list"></ul>
-        </section>
+          <div class="local-note">
+            This detection is rule-based and stays local. AI analysis will be added in a later phase.
+          </div>
 
-        <div class="preview-section detection-section">
-          <h3>Possible homework <span id="homeworkCount"></span></h3>
-          <ul id="homeworkList" class="candidate-list"></ul>
-        </div>
+          <section id="localAnswerPanel" class="local-answer-panel" aria-labelledby="localAnswerTitle" hidden>
+            <h2 id="localAnswerTitle">Jima's local answer</h2>
+            <p id="localAnswerText"></p>
+            <ul id="localAnswerList" class="local-answer-list"></ul>
+          </section>
 
-        <section id="assignmentDetailPanel" class="assignment-detail-panel" aria-label="Assignment detail inspection" hidden>
-          <div class="preview-section">
-            <h3>Assignment detail checked</h3>
-            <div id="assignmentDetailStatus" class="status-message compact" role="status" aria-live="polite"></div>
-            <div id="assignmentDetailContent" class="assignment-detail-content" hidden>
-              <div class="preview-field">
-                <span class="field-label">Detail page</span>
-                <strong id="assignmentDetailTitle"></strong>
-                <a id="assignmentDetailUrl" class="preview-url" href="#"></a>
-              </div>
-              <div class="detail-task-actions">
-                <button id="saveDetailTaskBtn" class="secondary-action" type="button">
-                  Save/update task with these details
-                </button>
-                <div id="saveDetailTaskStatus" class="status-message compact" role="status" aria-live="polite"></div>
-              </div>
-              <div class="detail-grid">
-                <div class="detail-box">
-                  <span class="field-label">Visible status evidence</span>
-                  <div id="assignmentDetailSubmissionStatus" class="detail-value"></div>
+          <div class="preview-section detection-section">
+            <h3>Possible homework <span id="homeworkCount"></span></h3>
+            <ul id="homeworkList" class="candidate-list"></ul>
+          </div>
+
+          <section id="assignmentDetailPanel" class="assignment-detail-panel" aria-label="Assignment detail inspection" hidden>
+            <div class="preview-section">
+              <h3>Assignment detail checked</h3>
+              <div id="assignmentDetailStatus" class="status-message compact" role="status" aria-live="polite"></div>
+              <div id="assignmentDetailContent" class="assignment-detail-content" hidden>
+                <div class="preview-field">
+                  <span class="field-label">Detail page</span>
+                  <strong id="assignmentDetailTitle"></strong>
+                  <a id="assignmentDetailUrl" class="preview-url" href="#"></a>
                 </div>
-                <div class="detail-box">
-                  <span class="field-label">Due date evidence</span>
-                  <ul id="assignmentDetailDates" class="candidate-list"></ul>
+                <div class="detail-task-actions">
+                  <button id="saveDetailTaskBtn" class="secondary-action" type="button">
+                    Save/update task with these details
+                  </button>
+                  <div id="saveDetailTaskStatus" class="status-message compact" role="status" aria-live="polite"></div>
                 </div>
-                <div class="detail-box">
-                  <span class="field-label">Files on detail page</span>
-                  <ul id="assignmentDetailFiles" class="candidate-list"></ul>
-                  <div id="assignmentDetailDownloadControls" class="download-controls" hidden>
-                    <p class="download-note">
-                      Downloads only start after you select detail-page files and click download. Jima does not read or upload file contents.
-                    </p>
-                    <button id="downloadDetailSelectedBtn" class="secondary-action" type="button" disabled>
-                      Download selected detail files
-                    </button>
-                    <div id="assignmentDetailDownloadStatus" class="status-message compact" role="status" aria-live="polite"></div>
+                <div class="detail-grid">
+                  <div class="detail-box">
+                    <span class="field-label">Visible status evidence</span>
+                    <div id="assignmentDetailSubmissionStatus" class="detail-value"></div>
+                  </div>
+                  <div class="detail-box">
+                    <span class="field-label">Due date evidence</span>
+                    <ul id="assignmentDetailDates" class="candidate-list"></ul>
+                  </div>
+                  <div class="detail-box">
+                    <span class="field-label">Files on detail page</span>
+                    <ul id="assignmentDetailFiles" class="candidate-list"></ul>
+                    <div id="assignmentDetailDownloadControls" class="download-controls" hidden>
+                      <p class="download-note">
+                        Downloads only start after you select detail-page files and click download. Jima does not read or upload file contents.
+                      </p>
+                      <button id="downloadDetailSelectedBtn" class="secondary-action" type="button" disabled>
+                        Download selected detail files
+                      </button>
+                      <div id="assignmentDetailDownloadStatus" class="status-message compact" role="status" aria-live="polite"></div>
+                    </div>
                   </div>
                 </div>
+                <div class="preview-section">
+                  <h3>Instructions preview</h3>
+                  <p id="assignmentDetailInstructions" class="text-preview"></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="preview-section detection-section">
+            <h3>Possible dates <span id="datesCount"></span></h3>
+            <ul id="datesList" class="candidate-list"></ul>
+          </div>
+
+          <div class="preview-section detection-section">
+            <h3>Files found <span id="filesCount"></span></h3>
+            <ul id="filesList" class="candidate-list"></ul>
+            <div id="downloadControls" class="download-controls" hidden>
+              <p class="download-note">
+                Downloads only start after you select files and click download. Jima does not read or upload file contents.
+              </p>
+              <button id="downloadSelectedBtn" class="secondary-action" type="button" disabled>
+                Download selected files
+              </button>
+              <div id="downloadStatusMessage" class="status-message compact" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+
+          <section id="aiPanel" class="ai-panel" aria-label="Ask Jima with AI" hidden>
+            <h2>Ask Jima with AI</h2>
+            <p class="ai-note">
+              AI analysis sends the extracted page context and local detections to your local Jima backend. No API key is stored in the extension.
+            </p>
+            <textarea id="aiQuestionInput" rows="3" placeholder="Ask Jima something about this page..."></textarea>
+            <button id="askAiBtn" class="primary-action" type="button">
+              Ask Jima with AI
+            </button>
+            <div id="aiStatusMessage" class="status-message" role="status" aria-live="polite"></div>
+            <div id="aiResults" class="ai-results" hidden>
+              <div class="preview-section">
+                <h3>Jima summary</h3>
+                <p id="aiSummary" class="ai-text"></p>
               </div>
               <div class="preview-section">
-                <h3>Instructions preview</h3>
-                <p id="assignmentDetailInstructions" class="text-preview"></p>
+                <h3>Assignments</h3>
+                <ul id="aiAssignments" class="candidate-list"></ul>
+              </div>
+              <div class="preview-section">
+                <h3>Dates / deadlines</h3>
+                <ul id="aiDates" class="candidate-list"></ul>
+              </div>
+              <div class="preview-section">
+                <h3>Files</h3>
+                <ul id="aiFiles" class="candidate-list"></ul>
+              </div>
+              <div class="preview-section">
+                <h3>Next actions</h3>
+                <ul id="aiNextActions" class="preview-list"></ul>
+              </div>
+              <div class="preview-section">
+                <h3>Uncertainties</h3>
+                <ul id="aiUncertainties" class="preview-list"></ul>
               </div>
             </div>
+          </section>
+
+          <div class="preview-section">
+            <h3>Headings <span id="headingsCount"></span></h3>
+            <ul id="headingsList" class="preview-list"></ul>
+          </div>
+
+          <div class="preview-section">
+            <h3>File links <span id="fileLinksCount"></span></h3>
+            <ul id="fileLinksList" class="preview-list"></ul>
+          </div>
+
+          <div class="preview-section">
+            <h3>Visible text preview</h3>
+            <p id="textPreview" class="text-preview"></p>
           </div>
         </section>
+      </details>
 
-        <div class="preview-section detection-section">
-          <h3>Possible dates <span id="datesCount"></span></h3>
-          <ul id="datesList" class="candidate-list"></ul>
-        </div>
-
-        <div class="preview-section detection-section">
-          <h3>Files found <span id="filesCount"></span></h3>
-          <ul id="filesList" class="candidate-list"></ul>
-          <div id="downloadControls" class="download-controls" hidden>
-            <p class="download-note">
-              Downloads only start after you select files and click download. Jima does not read or upload file contents.
-            </p>
-            <button id="downloadSelectedBtn" class="secondary-action" type="button" disabled>
-              Download selected files
-            </button>
-            <div id="downloadStatusMessage" class="status-message compact" role="status" aria-live="polite"></div>
-          </div>
-        </div>
-
-        <section id="aiPanel" class="ai-panel" aria-label="Ask Jima with AI" hidden>
-          <h2>Ask Jima with AI</h2>
-          <p class="ai-note">
-            AI analysis sends the extracted page context and local detections to your local Jima backend. No API key is stored in the extension.
-          </p>
-          <textarea id="aiQuestionInput" rows="3" placeholder="Ask Jima something about this page..."></textarea>
-          <button id="askAiBtn" class="primary-action" type="button">
-            Ask Jima with AI
-          </button>
-          <div id="aiStatusMessage" class="status-message" role="status" aria-live="polite"></div>
-          <div id="aiResults" class="ai-results" hidden>
-            <div class="preview-section">
-              <h3>Jima summary</h3>
-              <p id="aiSummary" class="ai-text"></p>
+      <details class="secondary-details saved-tasks-details">
+        <summary>Saved tasks</summary>
+        <div class="secondary-details-body">
+          <section class="saved-tasks-panel" aria-labelledby="savedTasksTitle">
+            <div class="saved-tasks-header">
+              <div>
+                <h2 id="savedTasksTitle">Saved tasks <span id="savedTasksCount"></span></h2>
+                <p>Saved Jima tasks are stored locally in this browser.</p>
+              </div>
             </div>
-            <div class="preview-section">
-              <h3>Assignments</h3>
-              <ul id="aiAssignments" class="candidate-list"></ul>
-            </div>
-            <div class="preview-section">
-              <h3>Dates / deadlines</h3>
-              <ul id="aiDates" class="candidate-list"></ul>
-            </div>
-            <div class="preview-section">
-              <h3>Files</h3>
-              <ul id="aiFiles" class="candidate-list"></ul>
-            </div>
-            <div class="preview-section">
-              <h3>Next actions</h3>
-              <ul id="aiNextActions" class="preview-list"></ul>
-            </div>
-            <div class="preview-section">
-              <h3>Uncertainties</h3>
-              <ul id="aiUncertainties" class="preview-list"></ul>
-            </div>
-          </div>
-        </section>
-
-        <div class="preview-section">
-          <h3>Headings <span id="headingsCount"></span></h3>
-          <ul id="headingsList" class="preview-list"></ul>
+            <ul id="savedTasksList" class="saved-tasks-list"></ul>
+            <div id="savedTasksStatus" class="status-message compact" role="status" aria-live="polite"></div>
+          </section>
         </div>
-
-        <div class="preview-section">
-          <h3>File links <span id="fileLinksCount"></span></h3>
-          <ul id="fileLinksList" class="preview-list"></ul>
-        </div>
-
-        <div class="preview-section">
-          <h3>Visible text preview</h3>
-          <p id="textPreview" class="text-preview"></p>
-        </div>
-      </section>
-
-      <section class="saved-tasks-panel" aria-labelledby="savedTasksTitle">
-        <div class="saved-tasks-header">
-          <div>
-            <h2 id="savedTasksTitle">Saved tasks <span id="savedTasksCount"></span></h2>
-            <p>Saved Jima tasks are stored locally in this browser.</p>
-          </div>
-        </div>
-        <ul id="savedTasksList" class="saved-tasks-list"></ul>
-        <div id="savedTasksStatus" class="status-message compact" role="status" aria-live="polite"></div>
-      </section>
+      </details>
     </section>
 
-    <section class="privacy-card">
-      <h2>Privacy</h2>
+    <details class="privacy-card secondary-details">
+      <summary>Privacy</summary>
       <p>Jima will only use page context after you choose to analyze a page.</p>
-    </section>
+    </details>
   </main>
 
   <script src="../data/courses-data.js"></script>

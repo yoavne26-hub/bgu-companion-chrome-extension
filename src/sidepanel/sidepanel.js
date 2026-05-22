@@ -5,6 +5,11 @@ const courseQueryInput = document.getElementById("courseQueryInput");
 const findCourseBtn = document.getElementById("findCourseBtn");
 const courseQueryStatus = document.getElementById("courseQueryStatus");
 const courseMatchesList = document.getElementById("courseMatchesList");
+const chatMessages = document.getElementById("chatMessages");
+const chatInput = document.getElementById("chatInput");
+const chatSendBtn = document.getElementById("chatSendBtn");
+const suggestedActions = document.querySelector(".suggested-actions");
+const evidenceDetails = document.getElementById("evidenceDetails");
 const analyzePageBtn = document.getElementById("analyzePageBtn");
 const statusMessage = document.getElementById("statusMessage");
 const previewPanel = document.getElementById("previewPanel");
@@ -93,6 +98,12 @@ const jimaSessionMemory = {
 
 const JIMA_FOLLOWUP_DOWNLOAD_PATTERN = /(download|save|get)\b.*\b(file|files|pdf|homework|assignment)|\b(file|files|pdf|homework|assignment)\b.*\b(download|save|get)|\u05d4\u05d5\u05e8\u05d3\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05d5\u05e8\u05d9\u05d3\s+\u05e7\u05d5\u05d1\u05e5|\u05dc\u05d4\u05d5\u05e8\u05d9\u05d3\s+\u05d0\u05ea\s+\u05d4\u05e7\u05d5\u05d1\u05e5|\u05e7\u05d5\u05d1\u05e5\s+\u05d4\u05de\u05d8\u05dc\u05d4|\u05e7\u05d5\u05d1\u05e5\s+\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d4\u05d1\u05d9\u05ea/i;
 const JIMA_FOLLOWUP_SHOW_FILES_PATTERN = /(show|list|what|which).*\b(file|files|pdf|resources?)\b|\b(file|files|resources?)\b.*(found|available|show|list)|\u05de\u05d4\s+\u05d4\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d0\u05d9\u05dc\u05d5\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d4\u05e6\u05d2\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05ea\u05e8\u05d0\u05d4\s+\u05e7\u05d1\u05e6\u05d9\u05dd/i;
+const JIMA_CHAT_ANALYZE_PATTERN = /(analy[sz]e|check|scan).*(current|this|page|moodle)|\bcurrent moodle page\b/i;
+const JIMA_CHAT_AI_PATTERN = /\b(ai|openai|gpt)\b|ask jima with ai|explain with ai/i;
+const JIMA_CHAT_HOMEWORK_PATTERN = /(homework|assignment|assignments|task|tasks|due|deadline|submit|submission|quiz|exercise|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05de\u05d8\u05dc\u05d5\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df)/i;
+const JIMA_STRICT_TASK_PATTERN = /(homework|assignment|task|submit|submission|due|deadline|exercise|project|quiz|lab|\/mod\/(?:assign|quiz|workshop)\/view\.php|\u05de\u05d8\u05dc\u05d4|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05de\u05d5\u05e2\u05d3\s+\u05d4\u05d2\u05e9\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df|\u05e4\u05e8\u05d5\u05d9\u05d9\u05e7\u05d8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e2\u05d1\u05d3\u05d4)/i;
+const JIMA_RESOURCE_ONLY_PATTERN = /(lecture|resource|file|folder|slides?|presentation|\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5|\u05d7\u05d5\u05de\u05e8|\u05de\u05e6\u05d2\u05ea)/i;
+const JIMA_OPEN_FILE_PATTERN = /\b(open|view|show|check)\b.*\b(file|lecture|resource|pdf|slides?)\b|\b(what is|what's)\b.*\b(about|lecture|file|resource)\b|\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e4\u05ea\u05d7.*\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e6\u05d2.*\u05e7\u05d5\u05d1\u05e5/i;
 
 function setStatus(text, type = "") {
   if (!statusMessage) return;
@@ -218,6 +229,171 @@ function appendLinkRow(listEl, link) {
   listEl.appendChild(item);
 }
 
+function addChatMessage(role, text, actions = []) {
+  if (!chatMessages || !text) return null;
+
+  const message = document.createElement("div");
+  message.className = `chat-message ${role === "user" ? "user" : "assistant"}`;
+  const body = document.createElement("div");
+  body.textContent = text;
+  message.appendChild(body);
+
+  const visibleActions = actions.filter(Boolean);
+  if (visibleActions.length > 0) {
+    const actionRow = document.createElement("div");
+    actionRow.className = "chat-message-actions";
+
+    for (const action of visibleActions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "chat-action-btn";
+      button.textContent = action.label;
+      for (const [key, value] of Object.entries(action.dataset || {})) {
+        button.dataset[key] = String(value);
+      }
+      actionRow.appendChild(button);
+    }
+
+    message.appendChild(actionRow);
+  }
+
+  chatMessages.appendChild(message);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return message;
+}
+
+function normalizeChatText(value) {
+  const normalizer = globalThis.JimaCourseResolver?.normalizeText;
+  return normalizer
+    ? normalizer(value)
+    : String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function getCandidateEvidenceText(candidate = {}) {
+  return [
+    candidate.title,
+    candidate.name,
+    candidate.type,
+    candidate.evidence,
+    candidate.fileType,
+    candidate.url
+  ].filter(Boolean).join(" ");
+}
+
+function isStrictHomeworkCandidate(candidate) {
+  if (globalThis.JimaTasks?.isTaskLikeCandidate) {
+    return globalThis.JimaTasks.isTaskLikeCandidate(candidate);
+  }
+
+  const evidenceText = getCandidateEvidenceText(candidate);
+  return JIMA_STRICT_TASK_PATTERN.test(evidenceText);
+}
+
+function getStrictHomeworkCandidates(candidates = []) {
+  return (candidates || []).filter(isStrictHomeworkCandidate);
+}
+
+function getStrictDetectionsForAssistant(detections = {}) {
+  return {
+    ...detections,
+    homeworkCandidates: getStrictHomeworkCandidates(detections.homeworkCandidates || [])
+  };
+}
+
+function describeFileMix(files = []) {
+  const counts = {
+    homework: 0,
+    lecture: 0,
+    resource: 0,
+    unknown: 0
+  };
+
+  for (const file of files) {
+    const text = getCandidateEvidenceText(file);
+    if (JIMA_STRICT_TASK_PATTERN.test(text)) {
+      counts.homework += 1;
+    } else if (/lecture|\u05d4\u05e8\u05e6\u05d0\u05d4/i.test(text)) {
+      counts.lecture += 1;
+    } else if (JIMA_RESOURCE_ONLY_PATTERN.test(text)) {
+      counts.resource += 1;
+    } else {
+      counts.unknown += 1;
+    }
+  }
+
+  const parts = [];
+  if (counts.homework) parts.push(countLabel(counts.homework, "homework-related file"));
+  if (counts.lecture) parts.push(countLabel(counts.lecture, "lecture file"));
+  if (counts.resource) parts.push(countLabel(counts.resource, "resource file"));
+  if (counts.unknown) parts.push(countLabel(counts.unknown, "file"));
+  return parts.join(", ") || "no file resources";
+}
+
+function getLatestFileCandidatesForChat() {
+  if (jimaSessionMemory.latestAssignmentFiles.length > 0) {
+    return {
+      source: "assignment",
+      label: latestActiveAssignmentTitle
+        ? `the latest inspected assignment (${latestActiveAssignmentTitle})`
+        : "the latest inspected assignment",
+      files: jimaSessionMemory.latestAssignmentFiles
+    };
+  }
+
+  return {
+    source: "course",
+    label: "the latest checked page",
+    files: jimaSessionMemory.latestCourseFileCandidates || []
+  };
+}
+
+function getSearchTokens(query) {
+  const ignored = new Set([
+    "download",
+    "open",
+    "show",
+    "check",
+    "what",
+    "about",
+    "file",
+    "files",
+    "resource",
+    "lecture",
+    "pdf",
+    "the",
+    "this",
+    "is",
+    "can",
+    "you",
+    "me"
+  ]);
+  return normalizeChatText(query)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1 && !ignored.has(token));
+}
+
+function filterFilesForQuery(files, query) {
+  const tokens = getSearchTokens(query);
+  if (tokens.length === 0) return files;
+
+  const numberedTokens = tokens.filter((token) => /\d/.test(token));
+  const matches = files.filter((file) => {
+    const text = normalizeChatText(getCandidateEvidenceText(file));
+    const hasNumberMatch = numberedTokens.length === 0 || numberedTokens.some((token) => text.includes(token));
+    const hasTextMatch = tokens.some((token) => text.includes(token));
+    return hasNumberMatch && hasTextMatch;
+  });
+
+  return matches.length > 0 ? matches : files;
+}
+
+function openEvidenceDetails() {
+  if (evidenceDetails) {
+    evidenceDetails.hidden = false;
+  }
+}
+
 function countLabel(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
@@ -258,15 +434,17 @@ function clearLocalAnswer() {
 }
 
 function buildCourseLocalSummary(pageContext, detections = {}, courseName = "") {
-  const homeworkCountValue = (detections.homeworkCandidates || []).length;
+  const strictHomework = getStrictHomeworkCandidates(detections.homeworkCandidates || []);
+  const homeworkCountValue = strictHomework.length;
   const dateCountValue = (detections.deadlineCandidates || []).length;
   const fileCountValue = (detections.fileCandidates || []).length;
   const pageLabel = getPageTitleForSummary(pageContext, courseName);
+  const fileMix = describeFileMix(detections.fileCandidates || []);
 
   const homeworkSentence = homeworkCountValue > 0
-    ? `I found ${countLabel(homeworkCountValue, "possible homework item")}`
+    ? `I found ${countLabel(homeworkCountValue, "possible homework item")} with homework/task-like evidence`
     : "I did not find clear homework candidates in the visible page text";
-  const summary = `I checked the visible Moodle page for ${pageLabel}. ${homeworkSentence}. I also found ${countOrNone(dateCountValue, "date clue")} and ${countOrNone(fileCountValue, "file resource")}. I cannot confirm whether homework was submitted from the course page alone.`;
+  const summary = `I checked the visible Moodle page for ${pageLabel}. ${homeworkSentence}. I also found ${countOrNone(dateCountValue, "date clue")} and ${fileMix}. I cannot confirm whether homework was submitted from the course page alone.`;
   const bullets = [];
 
   if (homeworkCountValue > 0) {
@@ -281,6 +459,9 @@ function buildCourseLocalSummary(pageContext, detections = {}, courseName = "") 
 
   if (fileCountValue > 0) {
     bullets.push("Files are visible resources only. Jima has not read file contents.");
+    if (homeworkCountValue === 0) {
+      bullets.push("I did not offer task saving for lecture/resource files without homework or submission evidence.");
+    }
   }
 
   return { summary, bullets };
@@ -327,11 +508,13 @@ function buildAssignmentDetailLocalSummary(detail = {}, extraBullet = "") {
 function renderCourseLocalAnswer(pageContext, detections, courseName = "") {
   const answer = buildCourseLocalSummary(pageContext, detections, courseName);
   renderLocalAnswer(answer.summary, answer.bullets);
+  return answer;
 }
 
 function renderAssignmentDetailLocalAnswer(detail, extraBullet = "") {
   const answer = buildAssignmentDetailLocalSummary(detail, extraBullet);
   renderLocalAnswer(answer.summary, answer.bullets);
+  return answer;
 }
 
 function confidenceClass(confidence) {
@@ -462,13 +645,21 @@ async function findCourseFromQuery() {
   setCourseQueryStatus("Searching saved courses and default course data locally...", "active");
 
   try {
-    const result = await globalThis.JimaCourseResolver.resolveCourses(query);
+    const result = await resolveCourseMatches(query);
     renderCourseMatches(result.matches || [], query);
   } catch {
     setCourseQueryStatus("Jima could not search saved courses right now.", "error");
   } finally {
     setCourseQueryLoading(false);
   }
+}
+
+async function resolveCourseMatches(query) {
+  if (!globalThis.JimaCourseResolver) {
+    throw new Error("Course matching is not available.");
+  }
+
+  return globalThis.JimaCourseResolver.resolveCourses(query);
 }
 
 function setCourseCheckButtonsDisabled(isDisabled) {
@@ -492,6 +683,7 @@ async function openAndAnalyzeCourseMatch(matchIndex) {
   setCourseCheckButtonsDisabled(true);
   latestCheckedCourseName = match.name || "";
   previewPanel.hidden = true;
+  if (evidenceDetails) evidenceDetails.hidden = true;
   clearAssignmentDetail();
   clearFollowupResults();
   clearLocalAnswer();
@@ -499,6 +691,7 @@ async function openAndAnalyzeCourseMatch(matchIndex) {
   aiResults.hidden = true;
   setCourseQueryStatus(`Opening ${match.name} and checking the visible Moodle page locally...`, "active");
   setStatus("Jima is opening one confirmed course page and running local analysis.", "active");
+  addChatMessage("assistant", `Opening ${match.name} and checking the visible Moodle page locally. I will not scan other courses.`);
 
   chrome.runtime.sendMessage(
     {
@@ -515,6 +708,7 @@ async function openAndAnalyzeCourseMatch(matchIndex) {
         const error = chrome.runtime.lastError.message || "Jima could not check this course.";
         setCourseQueryStatus(error, "error");
         setStatus(error, "error");
+        addChatMessage("assistant", error);
         return;
       }
 
@@ -522,14 +716,15 @@ async function openAndAnalyzeCourseMatch(matchIndex) {
         const error = response?.error || "Jima could not check this course.";
         setCourseQueryStatus(error, "error");
         setStatus(error, "error");
+        addChatMessage("assistant", error);
         return;
       }
 
       renderContext(response.pageContext || response.context || {}, response.detections || {});
-      const homeworkCountValue = (response.detections?.homeworkCandidates || []).length;
+      const homeworkCountValue = getStrictHomeworkCandidates(response.detections?.homeworkCandidates || []).length;
       setCourseQueryStatus(`I checked the saved Moodle page for ${match.name}.`, "success");
       setStatus(
-        `I found ${homeworkCountValue} possible homework candidate${homeworkCountValue === 1 ? "" : "s"} from the visible course page. I cannot confirm submission status from this course page; a later phase can inspect assignment detail pages after explicit action.`,
+        `I found ${homeworkCountValue} possible homework candidate${homeworkCountValue === 1 ? "" : "s"} from the visible course page. I cannot confirm submission status from this course page alone; use Check details for one assignment when needed.`,
         "success"
       );
     }
@@ -557,14 +752,17 @@ function appendTaskAction(item, candidate, index) {
   button.className = "task-action-btn save-task-btn";
   button.dataset.candidateIndex = String(index);
   const draft = globalThis.JimaTasks?.createTaskFromCandidate(candidate, latestPageContext || {});
+  const canSaveAsTask = isStrictHomeworkCandidate(candidate);
   const isSaved = draft
     ? latestSavedTasks.some((task) => globalThis.JimaTasks.isDuplicateTask(task, draft))
     : false;
 
-  button.textContent = isSaved ? "Saved" : "Save task";
-  button.disabled = isSaved || !globalThis.JimaTasks;
   actions.appendChild(detailButton);
-  actions.appendChild(button);
+  if (canSaveAsTask) {
+    button.textContent = isSaved ? "Saved" : "Save task";
+    button.disabled = isSaved || !globalThis.JimaTasks;
+    actions.appendChild(button);
+  }
   item.appendChild(actions);
 }
 
@@ -789,6 +987,143 @@ function cancelFollowupDownload() {
   setFollowupStatus("Download canceled. No files were downloaded.", "success");
 }
 
+function showAiConfirmationInChat() {
+  if (!latestPageContext) {
+    addChatMessage("assistant", "Run a local Moodle analysis first. After that, I can ask AI only if you confirm sending the extracted context to your local backend.");
+    return;
+  }
+
+  addChatMessage(
+    "assistant",
+    "AI analysis will send the extracted page context and local detections to your local Jima backend. No API key is stored in the extension. Continue?",
+    [{ label: "Ask Jima with AI", dataset: { chatAction: "confirmAi" } }]
+  );
+}
+
+function showFilesFromChat(query, mode = "show") {
+  const latestSource = getLatestFileCandidatesForChat();
+  const files = filterFilesForQuery((latestSource.files || []).filter((file) => file?.url), query);
+
+  if (files.length === 0) {
+    clearFollowupResults();
+    addChatMessage("assistant", "I do not have file candidates from the latest checked page yet. Analyze a Moodle page or check assignment details first.");
+    return;
+  }
+
+  const fileSource = {
+    ...latestSource,
+    files
+  };
+
+  renderFollowupFiles(fileSource, mode);
+  if (mode === "download") {
+    addChatMessage(
+      "assistant",
+      files.length === 1
+        ? `I found one likely file: ${files[0].name || "Moodle file"}. Confirm before downloading. I have not read the file contents.`
+        : `I found ${files.length} matching file candidates. Select what to download. I have not read the file contents.`
+    );
+    return;
+  }
+
+  addChatMessage(
+    "assistant",
+    `I found ${describeFileMix(files)} from ${fileSource.label}. I can show or download them after you confirm. Reading file contents will require a later file-analysis step.`,
+    [
+      { label: "Prepare download", dataset: { chatAction: "downloadFiles", query } },
+      { label: "Ask AI about visible page context", dataset: { chatAction: "ai" } }
+    ]
+  );
+}
+
+async function handleCourseQueryFromChat(query) {
+  addChatMessage("assistant", "I am searching saved courses and default course data locally.");
+
+  try {
+    const result = await resolveCourseMatches(query);
+    const matches = result.matches || [];
+    latestCourseMatches = matches;
+    renderCourseMatches(matches, query);
+
+    if (matches.length === 0) {
+      addChatMessage("assistant", `I could not find a saved course/page matching "${query}". Try saving the course first or search with a different name.`);
+      return;
+    }
+
+    addChatMessage(
+      "assistant",
+      matches.length === 1
+        ? `I found this saved course/page: ${matches[0].name}. I will only open and check it after you confirm.`
+        : `I found ${matches.length} possible saved course/page matches. Choose one to check.`,
+      matches.map((match, index) => ({
+        label: match.isMoodle ? `Check ${match.name}` : `${match.name} is not Moodle`,
+        dataset: { chatAction: "checkCourse", matchIndex: index }
+      }))
+    );
+  } catch {
+    addChatMessage("assistant", "I could not search saved courses right now.");
+  }
+}
+
+function getChatIntent(query) {
+  const text = String(query || "").trim();
+  if (!text) return "empty";
+  if (JIMA_CHAT_AI_PATTERN.test(text)) return "ai";
+  if (JIMA_FOLLOWUP_DOWNLOAD_PATTERN.test(text)) return "download_files";
+  if (JIMA_OPEN_FILE_PATTERN.test(text) || JIMA_FOLLOWUP_SHOW_FILES_PATTERN.test(text)) return "show_files";
+  if (JIMA_CHAT_ANALYZE_PATTERN.test(text)) return "analyze_page";
+  if (JIMA_CHAT_HOMEWORK_PATTERN.test(text) && /\b(this|current)\b.*\b(course|page)\b/i.test(text)) return "analyze_page";
+  if (JIMA_CHAT_HOMEWORK_PATTERN.test(text)) return "homework_or_course";
+  return "unsupported";
+}
+
+async function routeChatQuery(query, mirrorUser = true) {
+  const trimmed = String(query || "").trim();
+  if (mirrorUser && trimmed) addChatMessage("user", trimmed);
+
+  const intent = getChatIntent(trimmed);
+  if (intent === "empty") {
+    addChatMessage("assistant", "Ask me about the current Moodle page, a saved course, or files I found.");
+    return;
+  }
+
+  if (intent === "ai") {
+    showAiConfirmationInChat();
+    return;
+  }
+
+  if (intent === "download_files") {
+    showFilesFromChat(trimmed, "download");
+    return;
+  }
+
+  if (intent === "show_files") {
+    showFilesFromChat(trimmed, "show");
+    return;
+  }
+
+  if (intent === "analyze_page") {
+    addChatMessage("assistant", "I will check the visible Moodle page locally. Nothing is sent to AI or the backend.");
+    analyzeCurrentPage();
+    return;
+  }
+
+  if (intent === "homework_or_course") {
+    await handleCourseQueryFromChat(trimmed);
+    return;
+  }
+
+  addChatMessage("assistant", "I can currently analyze the visible Moodle page, check one saved course after confirmation, show/download detected files, or ask AI after explicit confirmation.");
+}
+
+function handleChatSubmit() {
+  const query = chatInput?.value.trim() || "";
+  if (chatInput) chatInput.value = "";
+  routeChatQuery(query).catch(() => {
+    addChatMessage("assistant", "I could not handle that request locally.");
+  });
+}
+
 function renderHeadings(headings) {
   clearList(headingsList);
   headingsCount.textContent = `(${headings.length})`;
@@ -821,15 +1156,19 @@ function renderFileLinks(fileLinks) {
 
 function renderHomeworkCandidates(candidates) {
   clearList(homeworkList);
-  latestHomeworkCandidates = candidates;
-  homeworkCount.textContent = `(${candidates.length})`;
+  const strictCandidates = getStrictHomeworkCandidates(candidates);
+  latestHomeworkCandidates = strictCandidates;
+  homeworkCount.textContent = `(${strictCandidates.length})`;
 
-  if (candidates.length === 0) {
-    appendEmptyRow(homeworkList, "I did not find clear homework candidates in the visible page text.");
+  if (strictCandidates.length === 0) {
+    appendEmptyRow(homeworkList, "I did not find clear homework/task evidence in the visible page text.");
+    if ((candidates || []).length > 0) {
+      appendEmptyRow(homeworkList, "Resource-like items were left out because they do not show homework or submission evidence.");
+    }
     return;
   }
 
-  for (const [index, candidate] of candidates.entries()) {
+  for (const [index, candidate] of strictCandidates.entries()) {
     const item = createCandidateCard(candidate.title || "Possible homework", candidate.confidence, candidate.url);
     appendCandidateText(item, "candidate-meta", candidate.type ? `Type: ${candidate.type}` : "");
     appendCandidateText(item, "candidate-evidence", candidate.evidence ? `Evidence: ${candidate.evidence}` : "");
@@ -973,7 +1312,7 @@ function renderAssignmentDetail(detail) {
   renderAssignmentDetailDates(detail.dueDates || []);
   renderAssignmentDetailFiles(detail.files || []);
   setSaveDetailTaskStatus("", "");
-  renderAssignmentDetailLocalAnswer(detail);
+  const answer = renderAssignmentDetailLocalAnswer(detail);
 
   const statusValue = detail.status?.value;
   const statusNote = statusValue === "not_submitted"
@@ -983,6 +1322,8 @@ function renderAssignmentDetail(detail) {
       : "I cannot confirm submission status from the visible text.";
 
   setAssignmentDetailStatus(`${statusNote} Detail-page inspection stayed local.`, "success");
+  if (evidenceDetails) evidenceDetails.hidden = false;
+  addChatMessage("assistant", `${answer.summary} ${answer.bullets.join(" ")}`);
 }
 
 function renderDetections(detections = {}) {
@@ -1011,15 +1352,24 @@ function renderContext(pageContext, detections) {
   clearAssignmentDetail();
   clearFollowupResults();
   jimaSessionMemory.latestAnalyzedCoursePageContext = pageContext;
-  jimaSessionMemory.latestHomeworkCandidates = latestDetections.homeworkCandidates || [];
+  jimaSessionMemory.latestHomeworkCandidates = latestHomeworkCandidates;
   jimaSessionMemory.latestCourseFileCandidates = latestFileCandidates;
-  renderCourseLocalAnswer(pageContext, latestDetections, latestCheckedCourseName);
+  const answer = renderCourseLocalAnswer(pageContext, latestDetections, latestCheckedCourseName);
 
+  if (evidenceDetails) evidenceDetails.hidden = false;
   previewPanel.hidden = false;
   aiPanel.hidden = false;
   aiResults.hidden = true;
   setAiStatus("", "");
   setStatus("This detection is rule-based and stays local. Use the AI button only if you want to send this extracted context to your local backend.", "success");
+  addChatMessage("assistant", answer.summary);
+
+  if (latestFileCandidates.length > 0) {
+    addChatMessage(
+      "assistant",
+      `I found ${describeFileMix(latestFileCandidates)}. Tell me which one you want, or ask me to download one. I have not read the file contents.`
+    );
+  }
 }
 
 function renderAiAssignments(assignments) {
@@ -1249,6 +1599,12 @@ async function saveHomeworkCandidate(candidateIndex) {
     return;
   }
 
+  if (!isStrictHomeworkCandidate(candidate)) {
+    setSavedTasksStatus("Jima only saves tasks when there is homework, submission, or deadline-like evidence.", "error");
+    addChatMessage("assistant", "I did not save this as a task because it looks like a lecture/resource item, not homework.");
+    return;
+  }
+
   const task = globalThis.JimaTasks.createTaskFromCandidate(candidate, latestPageContext || {});
   const result = await globalThis.JimaTasks.saveTask(task);
   latestSavedTasks = result.tasks;
@@ -1334,6 +1690,7 @@ function inspectAssignmentDetail(candidateIndex) {
   clearFollowupResults();
   setDetailButtonsDisabled(true);
   setAssignmentDetailStatus("Opening the selected assignment detail page and checking visible evidence locally...", "active");
+  addChatMessage("assistant", `Checking details for ${latestActiveAssignmentTitle}. I will inspect only this selected Moodle page.`);
 
   chrome.runtime.sendMessage(
     {
@@ -1348,11 +1705,13 @@ function inspectAssignmentDetail(candidateIndex) {
 
       if (chrome.runtime.lastError) {
         setAssignmentDetailStatus(chrome.runtime.lastError.message || "Jima could not inspect this detail page.", "error");
+        addChatMessage("assistant", chrome.runtime.lastError.message || "Jima could not inspect this detail page.");
         return;
       }
 
       if (!response?.ok) {
         setAssignmentDetailStatus(response?.error || "Jima could not inspect this detail page.", "error");
+        addChatMessage("assistant", response?.error || "Jima could not inspect this detail page.");
         return;
       }
 
@@ -1406,6 +1765,7 @@ function analyzeCurrentPage() {
   });
   setLoading(true);
   previewPanel.hidden = true;
+  if (evidenceDetails) evidenceDetails.hidden = true;
   clearAssignmentDetail();
   clearFollowupResults();
   clearLocalAnswer();
@@ -1420,11 +1780,13 @@ function analyzeCurrentPage() {
 
     if (chrome.runtime.lastError) {
       setStatus(chrome.runtime.lastError.message || "Jima could not analyze this page.", "error");
+      addChatMessage("assistant", chrome.runtime.lastError.message || "Jima could not analyze this page.");
       return;
     }
 
     if (!response?.ok) {
       setStatus(response?.error || "Jima could not analyze this page.", "error");
+      addChatMessage("assistant", response?.error || "Jima could not analyze this page.");
       return;
     }
 
@@ -1435,6 +1797,7 @@ function analyzeCurrentPage() {
 function askJimaWithAi() {
   if (!latestPageContext) {
     setAiStatus("Run local analysis first, then ask Jima with AI.", "error");
+    addChatMessage("assistant", "Run local analysis first, then I can ask AI after you confirm.");
     return;
   }
 
@@ -1442,12 +1805,13 @@ function askJimaWithAi() {
   setAiLoading(true);
   aiResults.hidden = true;
   setAiStatus("Sending extracted context to your local Jima backend...", "active");
+  addChatMessage("assistant", "Confirmed. I am sending the extracted context to your local Jima backend now.");
 
   chrome.runtime.sendMessage(
     {
       type: "JIMA_ANALYZE_WITH_AI",
       pageContext: latestPageContext,
-      detections: latestDetections || {},
+      detections: getStrictDetectionsForAssistant(latestDetections || {}),
       userQuestion
     },
     (response) => {
@@ -1455,16 +1819,19 @@ function askJimaWithAi() {
 
       if (chrome.runtime.lastError) {
         setAiStatus(chrome.runtime.lastError.message || "Jima AI request failed.", "error");
+        addChatMessage("assistant", chrome.runtime.lastError.message || "Jima AI request failed.");
         return;
       }
 
       if (!response?.ok) {
         setAiStatus(response?.error || "Jima AI request failed.", "error");
+        addChatMessage("assistant", response?.error || "Jima AI request failed.");
         return;
       }
 
       renderAiAnalysis(response.analysis || {});
       setAiStatus("AI analysis returned from your local backend.", "success");
+      addChatMessage("assistant", response.analysis?.summary || "AI analysis returned from your local backend.");
     }
   );
 }
@@ -1572,6 +1939,62 @@ function downloadSelectedFiles(scope = "page") {
 
 if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);
+}
+
+if (chatSendBtn) {
+  chatSendBtn.addEventListener("click", handleChatSubmit);
+}
+
+if (chatInput) {
+  chatInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleChatSubmit();
+    }
+  });
+}
+
+if (suggestedActions) {
+  suggestedActions.addEventListener("click", (event) => {
+    const button = event.target?.closest?.("[data-chat-action]");
+    if (!button) return;
+
+    const action = button.dataset.chatAction;
+    const prompts = {
+      analyze: "Analyze current Moodle page",
+      homework: "Do I have homework in this course?",
+      files: "Show files on this page",
+      ai: "Ask Jima with AI"
+    };
+    routeChatQuery(prompts[action] || button.textContent || "").catch(() => {
+      addChatMessage("assistant", "I could not handle that request locally.");
+    });
+  });
+}
+
+if (chatMessages) {
+  chatMessages.addEventListener("click", (event) => {
+    const button = event.target?.closest?.("[data-chat-action]");
+    if (!button) return;
+
+    const action = button.dataset.chatAction;
+    if (action === "confirmAi" || action === "ai") {
+      askJimaWithAi();
+      return;
+    }
+
+    if (action === "checkCourse") {
+      openAndAnalyzeCourseMatch(button.dataset.matchIndex).catch(() => {
+        addChatMessage("assistant", "I could not check this course.");
+        setCourseCheckButtonsDisabled(false);
+      });
+      return;
+    }
+
+    if (action === "downloadFiles") {
+      showFilesFromChat(button.dataset.query || "", "download");
+    }
+  });
 }
 
 if (findCourseBtn) {
@@ -1703,6 +2126,11 @@ if (chrome.storage?.onChanged && globalThis.JimaTasks) {
     });
   });
 }
+
+addChatMessage(
+  "assistant",
+  "Hi, I am Jima. Ask me to check the current Moodle page, look for homework in a saved course, or show files I found. I only use page context after you ask."
+);
 
 refreshSavedTasks().catch(() => {
   setSavedTasksStatus("Could not load saved tasks.", "error");
