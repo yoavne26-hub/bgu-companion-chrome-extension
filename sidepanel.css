@@ -156,6 +156,31 @@ h1 {
   transform: none;
 }
 
+.secondary-action {
+  width: 100%;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #ffffff;
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondary-action:hover {
+  border-color: rgba(249, 115, 22, 0.38);
+  color: var(--accent-dark);
+  transform: translateY(-1px);
+}
+
+.secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
 .preview-panel {
   display: flex;
   flex-direction: column;
@@ -168,7 +193,8 @@ h1 {
 }
 
 .ai-panel[hidden],
-.ai-results[hidden] {
+.ai-results[hidden],
+.download-controls[hidden] {
   display: none;
 }
 
@@ -353,6 +379,25 @@ h1 {
   background: var(--surface-soft);
 }
 
+.file-candidate-card {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 9px;
+}
+
+.file-select {
+  display: flex;
+  padding-top: 1px;
+}
+
+.file-select input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .candidate-title {
   display: flex;
   align-items: flex-start;
@@ -416,6 +461,27 @@ h1 {
 .empty-row {
   color: var(--muted);
   font-style: italic;
+}
+
+.download-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.download-note {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.status-message.compact {
+  min-height: 0;
+  padding: 9px 10px;
+  font-size: 12px;
 }
 
 .text-preview {

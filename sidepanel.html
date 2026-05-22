@@ -62,6 +62,15 @@
         <div class="preview-section detection-section">
           <h3>Files found <span id="filesCount"></span></h3>
           <ul id="filesList" class="candidate-list"></ul>
+          <div id="downloadControls" class="download-controls" hidden>
+            <p class="download-note">
+              Downloads only start after you select files and click download. Jima does not read or upload file contents.
+            </p>
+            <button id="downloadSelectedBtn" class="secondary-action" type="button" disabled>
+              Download selected files
+            </button>
+            <div id="downloadStatusMessage" class="status-message compact" role="status" aria-live="polite"></div>
+          </div>
         </div>
 
         <section id="aiPanel" class="ai-panel" aria-label="Ask Jima with AI" hidden>

@@ -18,6 +18,9 @@ const headingsList = document.getElementById("headingsList");
 const fileLinksCount = document.getElementById("fileLinksCount");
 const fileLinksList = document.getElementById("fileLinksList");
 const textPreview = document.getElementById("textPreview");
+const downloadControls = document.getElementById("downloadControls");
+const downloadSelectedBtn = document.getElementById("downloadSelectedBtn");
+const downloadStatusMessage = document.getElementById("downloadStatusMessage");
 const aiPanel = document.getElementById("aiPanel");
 const aiQuestionInput = document.getElementById("aiQuestionInput");
 const askAiBtn = document.getElementById("askAiBtn");
@@ -32,6 +35,7 @@ const aiUncertainties = document.getElementById("aiUncertainties");
 
 let latestPageContext = null;
 let latestDetections = null;
+let latestFileCandidates = [];
 
 function setStatus(text, type = "") {
   if (!statusMessage) return;
@@ -45,6 +49,12 @@ function setAiStatus(text, type = "") {
   aiStatusMessage.className = `status-message${type ? ` is-${type}` : ""}`;
 }
 
+function setDownloadStatus(text, type = "") {
+  if (!downloadStatusMessage) return;
+  downloadStatusMessage.textContent = text;
+  downloadStatusMessage.className = `status-message compact${type ? ` is-${type}` : ""}`;
+}
+
 function setLoading(isLoading) {
   if (!analyzePageBtn) return;
   analyzePageBtn.disabled = isLoading;
@@ -55,6 +65,12 @@ function setAiLoading(isLoading) {
   if (!askAiBtn) return;
   askAiBtn.disabled = isLoading;
   askAiBtn.textContent = isLoading ? "Asking local backend..." : "Ask Jima with AI";
+}
+
+function setDownloadLoading(isLoading) {
+  if (!downloadSelectedBtn) return;
+  downloadSelectedBtn.disabled = isLoading || getSelectedFileCandidates().length === 0;
+  downloadSelectedBtn.textContent = isLoading ? "Starting downloads..." : "Download selected files";
 }
 
 function clearList(listEl) {
@@ -129,6 +145,66 @@ function appendCandidateText(item, className, text) {
   item.appendChild(line);
 }
 
+function getSelectedFileCandidates() {
+  if (!filesList) return [];
+
+  return Array.from(filesList.querySelectorAll(".file-select-input:checked"))
+    .map((input) => latestFileCandidates[Number(input.dataset.fileIndex)])
+    .filter((candidate) => candidate?.url);
+}
+
+function updateDownloadButtonState() {
+  if (!downloadSelectedBtn) return;
+
+  const selectedCount = getSelectedFileCandidates().length;
+  downloadSelectedBtn.disabled = selectedCount === 0;
+  downloadSelectedBtn.textContent = selectedCount > 0
+    ? `Download selected files (${selectedCount})`
+    : "Download selected files";
+}
+
+function createFileCandidateCard(candidate, index) {
+  const item = document.createElement("li");
+  item.className = "candidate-card file-candidate-card";
+
+  const selectWrapper = document.createElement("label");
+  selectWrapper.className = "file-select";
+  selectWrapper.setAttribute("aria-label", `Select ${candidate.name || "Moodle file"} for download`);
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.className = "file-select-input";
+  checkbox.dataset.fileIndex = String(index);
+  checkbox.disabled = !candidate.url;
+  selectWrapper.appendChild(checkbox);
+
+  const body = document.createElement("div");
+  const title = document.createElement("div");
+  title.className = "candidate-title";
+
+  if (candidate.url) {
+    const anchor = document.createElement("a");
+    anchor.href = candidate.url;
+    anchor.target = "_blank";
+    anchor.rel = "noreferrer";
+    anchor.textContent = candidate.name || "Moodle file";
+    title.appendChild(anchor);
+  } else {
+    const text = document.createElement("span");
+    text.textContent = candidate.name || "Moodle file";
+    title.appendChild(text);
+  }
+
+  title.appendChild(createConfidenceBadge(candidate.confidence));
+  body.appendChild(title);
+  appendCandidateText(body, "candidate-meta", candidate.fileType ? `File type: ${candidate.fileType}` : "");
+  appendCandidateText(body, "candidate-evidence", candidate.evidence ? `Evidence: ${candidate.evidence}` : "");
+
+  item.appendChild(selectWrapper);
+  item.appendChild(body);
+  return item;
+}
+
 function renderHeadings(headings) {
   clearList(headingsList);
   headingsCount.textContent = `(${headings.length})`;
@@ -196,19 +272,30 @@ function renderDeadlineCandidates(candidates) {
 
 function renderFileCandidates(candidates) {
   clearList(filesList);
+  latestFileCandidates = candidates.filter((candidate) => candidate?.url);
   filesCount.textContent = `(${candidates.length})`;
+  downloadControls.hidden = candidates.length === 0;
+  setDownloadStatus("", "");
+  updateDownloadButtonState();
 
   if (candidates.length === 0) {
     appendEmptyRow(filesList, "No Moodle file links were detected on this page.");
+    latestFileCandidates = [];
+    downloadControls.hidden = true;
     return;
   }
 
-  for (const candidate of candidates) {
-    const item = createCandidateCard(candidate.name || "Moodle file", candidate.confidence, candidate.url);
-    appendCandidateText(item, "candidate-meta", candidate.fileType ? `File type: ${candidate.fileType}` : "");
-    appendCandidateText(item, "candidate-evidence", candidate.evidence ? `Evidence: ${candidate.evidence}` : "");
-    filesList.appendChild(item);
+  for (const [index, candidate] of latestFileCandidates.entries()) {
+    filesList.appendChild(createFileCandidateCard(candidate, index));
   }
+
+  if (latestFileCandidates.length === 0) {
+    appendEmptyRow(filesList, "File-like items were found, but none had downloadable Moodle URLs.");
+    downloadControls.hidden = true;
+    return;
+  }
+
+  updateDownloadButtonState();
 }
 
 function renderDetections(detections = {}) {
@@ -319,10 +406,13 @@ function analyzeCurrentPage() {
 
   latestPageContext = null;
   latestDetections = null;
+  latestFileCandidates = [];
   setLoading(true);
   previewPanel.hidden = true;
+  downloadControls.hidden = true;
   aiPanel.hidden = true;
   aiResults.hidden = true;
+  setDownloadStatus("", "");
   setStatus("Reading visible Moodle context locally...", "active");
 
   chrome.runtime.sendMessage({ type: "JIMA_ANALYZE_CURRENT_PAGE" }, (response) => {
@@ -379,10 +469,81 @@ function askJimaWithAi() {
   );
 }
 
+function renderDownloadResult(response) {
+  const summary = response?.summary || {};
+  const started = summary.started || 0;
+  const skipped = summary.skipped || 0;
+  const failed = summary.failed || 0;
+  const details = (response?.results || [])
+    .filter((result) => result.status !== "started")
+    .map((result) => `${result.name || "File"}: ${result.error || result.status}`)
+    .slice(0, 3);
+
+  const parts = [];
+  if (started) parts.push(`${started} download${started === 1 ? "" : "s"} started`);
+  if (skipped) parts.push(`${skipped} skipped`);
+  if (failed) parts.push(`${failed} failed`);
+
+  const message = parts.length
+    ? `${parts.join(", ")}. Chrome is handling started downloads.${details.length ? ` ${details.join(" ")}` : ""}`
+    : response?.error || "No downloads were started.";
+
+  setDownloadStatus(message, started > 0 && failed === 0 ? "success" : "error");
+}
+
+function downloadSelectedFiles() {
+  const selectedFiles = getSelectedFileCandidates();
+  if (selectedFiles.length === 0) {
+    setDownloadStatus("Select at least one file before downloading.", "error");
+    updateDownloadButtonState();
+    return;
+  }
+
+  setDownloadLoading(true);
+  setDownloadStatus("Starting selected downloads in Chrome...", "active");
+
+  chrome.runtime.sendMessage(
+    {
+      type: "JIMA_DOWNLOAD_SELECTED_FILES",
+      files: selectedFiles.map((file) => ({
+        name: file.name,
+        url: file.url,
+        fileType: file.fileType,
+        evidence: file.evidence,
+        confidence: file.confidence
+      }))
+    },
+    (response) => {
+      setDownloadLoading(false);
+      updateDownloadButtonState();
+
+      if (chrome.runtime.lastError) {
+        setDownloadStatus(chrome.runtime.lastError.message || "Jima could not start downloads.", "error");
+        return;
+      }
+
+      renderDownloadResult(response || {});
+    }
+  );
+}
+
 if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);
 }
 
 if (askAiBtn) {
   askAiBtn.addEventListener("click", askJimaWithAi);
+}
+
+if (filesList) {
+  filesList.addEventListener("change", (event) => {
+    if (event.target?.classList?.contains("file-select-input")) {
+      updateDownloadButtonState();
+      setDownloadStatus("", "");
+    }
+  });
+}
+
+if (downloadSelectedBtn) {
+  downloadSelectedBtn.addEventListener("click", downloadSelectedFiles);
 }

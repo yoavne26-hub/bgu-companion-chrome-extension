@@ -57,6 +57,8 @@ http://localhost:3000
 
 Start this backend before using "Ask Jima with AI" in the extension. The local Moodle preview and rule-based detection still work when the backend is offline.
 
+Detected Moodle file downloads are handled by the Chrome Extension, not this backend. Downloads only start after the user selects files in the Jima side panel and clicks "Download selected files". File contents are not read, uploaded, summarized, or sent to OpenAI by this backend.
+
 ## Endpoints
 
 ### GET /health
@@ -108,4 +110,5 @@ If `OPENAI_API_KEY` is missing, the endpoint returns a clear configuration error
 - Moodle context is sent only after explicit user action from the side panel.
 - This backend does not store Moodle content.
 - Local rule-based detection still works without this backend.
+- Selected-file downloads happen in the Chrome Extension after explicit user action; file contents are not sent to the backend.
 - CORS is not enabled because the extension routes local backend calls through its background service worker with a narrow localhost host permission.
