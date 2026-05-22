@@ -39,7 +39,7 @@ Passwords are never stored by the extension. Chrome Password Manager remains the
 ## Product Tour
 
 ## Main Popup
-![Main Popup](screenshots/popuphome.png)
+![Main Popup](docs/screenshots/popuphome.png)
 
 The popup is the main entry point to the extension. It is designed as a compact hub that gives immediate access to the most common BGU destinations:
 
@@ -54,7 +54,7 @@ The popup was visually refreshed in v1.1 with a more polished rounded layout, so
 ---
 
 ## Course Search In The Popup
-![Popup Search Legacy](screenshots/popupsearch1.png)
+![Popup Search Legacy](docs/screenshots/popupsearch1.png)
 
 The popup includes a dedicated course search view for fast access to saved pages. Students can type part of a course name and open the saved link immediately without manually browsing Moodle menus.
 
@@ -64,16 +64,16 @@ This is especially useful when:
 - the same course is used every week
 - a student wants one consistent place to open saved academic pages from
 
-![Popup Search Legacy](screenshots/popupsearch2.png)
+![Popup Search Legacy](docs/screenshots/popupsearch2.png)
 
-![Popup Search Legacy](screenshots/popupsearch3.png)
+![Popup Search Legacy](docs/screenshots/popupsearch3.png)
 
 
 
 ---
 
 ## Settings And Course Management
-![Settings Page](screenshots/popupsettings.png)
+![Settings Page](docs/screenshots/popupsettings.png)
 
 The settings page is the control center for the extension. It includes two major responsibilities:
 
@@ -105,7 +105,7 @@ One of the main additions in v1.1 is the floating save widget that appears direc
 Instead of opening settings and copying a URL manually, the user can save the current page from the page itself.
 
 ### Save State
-![Save Widget - Save State](screenshots/popupbuttonexp1.png)
+![Save Widget - Save State](docs/screenshots/popupbuttonexp1.png)
 
 When the current relevant page is not yet stored, the widget appears in its active save state:
 
@@ -116,7 +116,7 @@ When the current relevant page is not yet stored, the widget appears in its acti
 This tells the user that the current page can be added to their saved list immediately.
 
 ### Save Dialog
-![Save Widget - Save State](screenshots/popupbuttonexp2.png)
+![Save Widget - Save State](docs/screenshots/popupbuttonexp2.png)
 
 When the user clicks the save button, the extension opens a compact inline dialog that:
 
@@ -127,7 +127,7 @@ When the user clicks the save button, the extension opens a compact inline dialo
 The dialog is intentionally small and non-intrusive so it does not break the browsing flow.
 
 ### Saved State
-![Save Widget - Save State](screenshots/popupexp3.png)
+![Save Widget - Save State](docs/screenshots/popupexp3.png)
 
 If the current relevant URL already exists in storage, the widget changes immediately to:
 
@@ -149,18 +149,18 @@ BGU Companion autofills only the fields that are repetitive and safe to handle l
 It never stores passwords and it never tries to manage credentials outside the browser's own password manager.
 
 ### Student Info Autofill
-![Student Info Autofill](screenshots/popupinfo.png)
+![Student Info Autofill](docs/screenshots/popupinfo.png)
 
 On supported Student Info pages, the extension can populate the username and ID fields automatically when the user has configured their profile in settings.
 
 
 ### Portal Autofill
-![Portal Autofill](screenshots/popupportal.png)
+![Portal Autofill](docs/screenshots/popupportal.png)
 
 The student portal is now part of the supported autofill flow as well. This extends the extension beyond Moodle and Gezer into another frequently used BGU system.
 
 ### Gezer Autofill
-![Gezer Autofill](screenshots/popupgezer.png)
+![Gezer Autofill](docs/screenshots/popupgezer.png)
 
 Gezer remains part of the secure autofill workflow, allowing students to move through exam-related pages faster without storing sensitive password data in the extension.
 
@@ -244,11 +244,17 @@ This keeps the extension useful without taking ownership of the most sensitive p
 Core files:
 
 - `manifest.json` - extension configuration, permissions, and content script registration
-- `popup.html` / `popup.js` - popup interface, course search, and quick shortcuts
-- `options.html` / `options.js` - settings page, profile management, and saved course management
-- `content.js` - autofill logic and floating save widget behavior
-- `popup.css` - popup and settings styling
-- `courses-data.js` - seeded default course data
+- `src/popup/` - popup interface, course search, quick shortcuts, and Jima entry points
+- `src/options/` - settings page, profile management, and saved course management
+- `src/sidepanel/` - Jima side panel UI, local analysis preview, saved tasks, and course lookup
+- `src/content/content.js` - autofill logic, Moodle context extraction, and floating save widget behavior
+- `src/background/background.js` - MV3 service worker message routing, side panel opening, AI proxy calls, and downloads
+- `src/shared/` - shared Jima helpers such as saved tasks and course resolution
+- `src/data/courses-data.js` - seeded default course data
+- `src/styles/app.css` - shared popup and settings styling
+- `assets/icons/` - Chrome Extension icons
+- `docs/screenshots/` - README screenshots
+- `backend/` - local Jima backend proxy for OpenAI calls
 
 Technical highlights:
 
@@ -293,5 +299,4 @@ This project demonstrates:
 - safe handling of login-related workflows
 - pragmatic automation with real user constraints
 - interface design for daily student productivity
-
 

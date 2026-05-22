@@ -21,6 +21,21 @@
         Open a Moodle page and Jima will help you identify assignments, deadlines, files, and next steps.
       </p>
 
+      <section class="course-query-panel" aria-labelledby="courseQueryTitle">
+        <h2 id="courseQueryTitle">Ask about a saved course</h2>
+        <div class="course-query-row">
+          <input
+            id="courseQueryInput"
+            type="text"
+            placeholder="Ask about a course, e.g. Do I have homework in מימון?"
+            autocomplete="off"
+          />
+          <button id="findCourseBtn" class="secondary-action" type="button">Find course</button>
+        </div>
+        <div id="courseQueryStatus" class="status-message compact" role="status" aria-live="polite"></div>
+        <ul id="courseMatchesList" class="course-match-list"></ul>
+      </section>
+
       <button id="analyzePageBtn" class="primary-action" type="button">
         Analyze current Moodle page
       </button>
@@ -145,7 +160,9 @@
     </section>
   </main>
 
-  <script src="jima-tasks.js"></script>
+  <script src="../data/courses-data.js"></script>
+  <script src="../shared/jima-tasks.js"></script>
+  <script src="../shared/jima-course-resolver.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

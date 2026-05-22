@@ -137,7 +137,7 @@ async function handleSearch() {
 
 if (btnSettings) {
   btnSettings.addEventListener("click", () => {
-    const url = chrome.runtime.getURL("options.html");
+    const url = chrome.runtime.getURL("src/options/options.html");
     chrome.tabs.create({ url });
   });
 }

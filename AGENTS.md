@@ -25,13 +25,17 @@ Jima must never invent tasks, deadlines, file contents, or Moodle information th
 Expected main files:
 
 - manifest.json - Chrome Extension manifest, permissions, host permissions, popup, options, content scripts.
-- popup.html / popup.js - main popup, quick navigation, saved courses/pages.
-- options.html / options.js - settings, autofill profile, saved pages management.
-- content.js - DOM interaction, autofill behavior, Moodle/page behavior, floating save widget.
-- popup.css - shared visual styling for the popup and current extension UI.
-- courses-data.js - default course/link data.
-- icons/ - extension icons.
-- screenshots/ - README and product screenshots.
+- src/popup/popup.html / src/popup/popup.js - main popup, quick navigation, saved courses/pages, Jima entry points.
+- src/options/options.html / src/options/options.js - settings, autofill profile, saved pages management.
+- src/sidepanel/sidepanel.html / src/sidepanel/sidepanel.css / src/sidepanel/sidepanel.js - Jima side panel UI.
+- src/content/content.js - DOM interaction, autofill behavior, Moodle/page behavior, floating save widget, local Moodle extraction.
+- src/background/background.js - MV3 service worker message routing and privileged extension actions.
+- src/shared/ - shared Jima browser helpers such as saved tasks and course resolution.
+- src/data/courses-data.js - default course/link data.
+- src/styles/app.css - shared visual styling for popup and options UI.
+- assets/icons/ - extension icons.
+- docs/screenshots/ - README and product screenshots.
+- backend/ - local backend proxy for future/explicit OpenAI calls.
 
 Do not rename or reorganize existing files unless explicitly requested.
 
@@ -46,14 +50,14 @@ Do not rename or reorganize existing files unless explicitly requested.
 
 As Jima grows, prefer small purpose-specific files such as:
 
-- sidepanel.html
-- sidepanel.css
-- sidepanel.js
-- background.js
-- moodle-extractor.js
-- assistant-context.js
-- assistant-api.js
-- downloads.js
+- src/sidepanel/sidepanel.html
+- src/sidepanel/sidepanel.css
+- src/sidepanel/sidepanel.js
+- src/background/background.js
+- src/content/moodle-extractor.js
+- src/shared/assistant-context.js
+- src/shared/assistant-api.js
+- src/shared/downloads.js
 
 ## Chrome Extension Rules
 
@@ -250,12 +254,12 @@ When making changes:
 
 Preferred assistant module responsibilities:
 
-- sidepanel.js - Jima UI logic and user interactions.
-- assistant-context.js - extension-side context request orchestration.
-- moodle-extractor.js - DOM extraction from Moodle pages.
-- assistant-api.js - calls to the backend proxy, not directly to OpenAI.
-- downloads.js - safe file download handling.
-- background.js - MV3 service worker message routing and privileged extension actions.
+- src/sidepanel/sidepanel.js - Jima UI logic and user interactions.
+- src/shared/assistant-context.js - extension-side context request orchestration.
+- src/content/moodle-extractor.js - DOM extraction from Moodle pages.
+- src/shared/assistant-api.js - calls to the backend proxy, not directly to OpenAI.
+- src/shared/downloads.js - safe file download handling.
+- src/background/background.js - MV3 service worker message routing and privileged extension actions.
 
 ## Testing Expectations
 

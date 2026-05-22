@@ -3,11 +3,13 @@ const JIMA_MESSAGES = Object.freeze({
   ANALYZE_CURRENT_PAGE: "JIMA_ANALYZE_CURRENT_PAGE",
   GET_MOODLE_CONTEXT: "JIMA_GET_MOODLE_CONTEXT",
   ANALYZE_WITH_AI: "JIMA_ANALYZE_WITH_AI",
-  DOWNLOAD_SELECTED_FILES: "JIMA_DOWNLOAD_SELECTED_FILES"
+  DOWNLOAD_SELECTED_FILES: "JIMA_DOWNLOAD_SELECTED_FILES",
+  OPEN_AND_ANALYZE_COURSE: "JIMA_OPEN_AND_ANALYZE_COURSE"
 });
 
 const JIMA_BACKEND_ANALYZE_URL = "http://localhost:3000/api/jima/analyze-context";
 const JIMA_BACKEND_TIMEOUT_MS = 20000;
+const JIMA_COURSE_ANALYSIS_TIMEOUT_MS = 15000;
 
 function isMoodleTab(tab) {
   try {
@@ -35,6 +37,134 @@ function sendTabMessage(tabId, message) {
       resolve(response || { ok: false, error: "No page response received." });
     });
   });
+}
+
+function isSafeMoodleCourseUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "moodle.bgu.ac.il";
+  } catch {
+    return false;
+  }
+}
+
+function waitForTabComplete(tabId, timeoutMs = JIMA_COURSE_ANALYSIS_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      resolve(false);
+    }, timeoutMs);
+
+    function cleanup() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+    }
+
+    function onUpdated(updatedTabId, changeInfo) {
+      if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
+      cleanup();
+      resolve(true);
+    }
+
+    chrome.tabs.get(tabId, (tab) => {
+      if (!chrome.runtime.lastError && tab?.status === "complete") {
+        cleanup();
+        resolve(true);
+        return;
+      }
+
+      chrome.tabs.onUpdated.addListener(onUpdated);
+    });
+  });
+}
+
+async function sendTabMessageWithRetry(tabId, message, timeoutMs = JIMA_COURSE_ANALYSIS_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  let lastResponse = null;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    lastResponse = await sendTabMessage(tabId, message);
+    if (lastResponse?.ok || !/could not reach/i.test(lastResponse?.error || "")) {
+      return lastResponse;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  return lastResponse || {
+    ok: false,
+    error: "Jima could not reach the course page after it loaded."
+  };
+}
+
+function normalizeTabUrl(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return url || "";
+  }
+}
+
+async function findExistingCourseTab(courseUrl) {
+  const targetUrl = normalizeTabUrl(courseUrl);
+  const tabs = await chrome.tabs.query({ url: "https://moodle.bgu.ac.il/*" });
+  return tabs.find((tab) => normalizeTabUrl(tab.url) === targetUrl) || null;
+}
+
+async function openOrFocusCourseTab(courseUrl) {
+  const existingTab = await findExistingCourseTab(courseUrl);
+  if (existingTab?.id) {
+    if (existingTab.windowId) {
+      await chrome.windows.update(existingTab.windowId, { focused: true });
+    }
+    return chrome.tabs.update(existingTab.id, { active: true });
+  }
+
+  return chrome.tabs.create({ url: courseUrl, active: true });
+}
+
+async function openAndAnalyzeCourse(course) {
+  const url = String(course?.url || "").trim();
+  const name = String(course?.name || "this course").trim();
+
+  if (!isSafeMoodleCourseUrl(url)) {
+    return {
+      ok: false,
+      error: "Jima can only check HTTPS BGU Moodle pages in this phase."
+    };
+  }
+
+  const tab = await openOrFocusCourseTab(url);
+  if (!tab?.id) {
+    return {
+      ok: false,
+      error: "Jima could not open this Moodle course page."
+    };
+  }
+
+  await waitForTabComplete(tab.id);
+  const response = await sendTabMessageWithRetry(tab.id, { type: JIMA_MESSAGES.GET_MOODLE_CONTEXT });
+
+  if (!response?.ok) {
+    return response || {
+      ok: false,
+      error: "Jima could not analyze this course page."
+    };
+  }
+
+  return {
+    ...response,
+    course: {
+      name,
+      url,
+      tabId: tab.id
+    }
+  };
 }
 
 async function askJimaBackend(payload) {
@@ -294,6 +424,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ok: false,
           error: "Jima could not start the selected downloads.",
           results: []
+        });
+      });
+
+    return true;
+  }
+
+  if (message?.type === JIMA_MESSAGES.OPEN_AND_ANALYZE_COURSE) {
+    openAndAnalyzeCourse(message.course)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error?.message || "Jima could not open and check this course."
         });
       });
 

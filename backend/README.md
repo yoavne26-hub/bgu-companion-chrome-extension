@@ -61,6 +61,8 @@ Detected Moodle file downloads are handled by the Chrome Extension, not this bac
 
 Saved Jima academic tasks are stored locally by the Chrome Extension in `chrome.storage.local` under `jimaSavedTasks`. They are not sent to this backend or to OpenAI.
 
+Saved-course lookup and single-course Moodle checks are also handled locally by the Chrome Extension. The extension only opens and analyzes a matched course page after the user confirms the specific course to check.
+
 ## Endpoints
 
 ### GET /health
@@ -114,4 +116,5 @@ If `OPENAI_API_KEY` is missing, the endpoint returns a clear configuration error
 - Local rule-based detection still works without this backend.
 - Selected-file downloads happen in the Chrome Extension after explicit user action; file contents are not sent to the backend.
 - Saved Jima tasks stay local in browser storage and are not synced through this backend.
+- Saved-course matching and single-course scans are local extension actions and do not call this backend.
 - CORS is not enabled because the extension routes local backend calls through its background service worker with a narrow localhost host permission.

@@ -1,6 +1,10 @@
 const DEFAULT_AI_QUESTION =
   "What homework, deadlines, files, and next actions are visible on this Moodle page?";
 
+const courseQueryInput = document.getElementById("courseQueryInput");
+const findCourseBtn = document.getElementById("findCourseBtn");
+const courseQueryStatus = document.getElementById("courseQueryStatus");
+const courseMatchesList = document.getElementById("courseMatchesList");
 const analyzePageBtn = document.getElementById("analyzePageBtn");
 const statusMessage = document.getElementById("statusMessage");
 const previewPanel = document.getElementById("previewPanel");
@@ -41,11 +45,18 @@ let latestDetections = null;
 let latestFileCandidates = [];
 let latestHomeworkCandidates = [];
 let latestSavedTasks = [];
+let latestCourseMatches = [];
 
 function setStatus(text, type = "") {
   if (!statusMessage) return;
   statusMessage.textContent = text;
   statusMessage.className = `status-message${type ? ` is-${type}` : ""}`;
+}
+
+function setCourseQueryStatus(text, type = "") {
+  if (!courseQueryStatus) return;
+  courseQueryStatus.textContent = text;
+  courseQueryStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
 }
 
 function setAiStatus(text, type = "") {
@@ -70,6 +81,12 @@ function setLoading(isLoading) {
   if (!analyzePageBtn) return;
   analyzePageBtn.disabled = isLoading;
   analyzePageBtn.textContent = isLoading ? "Analyzing locally..." : "Analyze current Moodle page";
+}
+
+function setCourseQueryLoading(isLoading) {
+  if (!findCourseBtn) return;
+  findCourseBtn.disabled = isLoading;
+  findCourseBtn.textContent = isLoading ? "Searching..." : "Find course";
 }
 
 function setAiLoading(isLoading) {
@@ -154,6 +171,147 @@ function appendCandidateText(item, className, text) {
   line.className = className;
   line.textContent = text;
   item.appendChild(line);
+}
+
+function renderCourseMatches(matches, query) {
+  clearList(courseMatchesList);
+  latestCourseMatches = matches;
+
+  if (matches.length === 0) {
+    setCourseQueryStatus(`I could not find a saved course/page matching "${query}". Try saving the course first or search with a different name.`, "error");
+    return;
+  }
+
+  setCourseQueryStatus(
+    matches.length === 1
+      ? `I found this saved course/page: ${matches[0].name}. Confirm before Jima opens and checks it.`
+      : `I found ${matches.length} possible matches. Choose one course to check.`,
+    "success"
+  );
+
+  for (const [index, match] of matches.entries()) {
+    const item = document.createElement("li");
+    item.className = "course-match-card";
+
+    const title = document.createElement("div");
+    title.className = "course-match-title";
+
+    const name = document.createElement("span");
+    name.textContent = match.name;
+    title.appendChild(name);
+
+    const source = document.createElement("span");
+    source.className = "course-match-source";
+    source.textContent = match.source === "saved" ? "Saved" : "Default";
+    title.appendChild(source);
+    item.appendChild(title);
+
+    const link = document.createElement("a");
+    link.className = "course-match-url";
+    link.href = match.url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = match.url;
+    item.appendChild(link);
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary-action check-course-btn";
+    button.dataset.matchIndex = String(index);
+    button.disabled = !match.isMoodle;
+    button.textContent = match.isMoodle ? (matches.length === 1 ? "Open and check this course" : "Check this course") : "Not a Moodle page";
+    item.appendChild(button);
+
+    courseMatchesList.appendChild(item);
+  }
+}
+
+async function findCourseFromQuery() {
+  const query = courseQueryInput?.value.trim() || "";
+  clearList(courseMatchesList);
+
+  if (!query) {
+    setCourseQueryStatus("Type a course question or course name first.", "error");
+    return;
+  }
+
+  if (!globalThis.JimaCourseResolver) {
+    setCourseQueryStatus("Course matching is not available in this page.", "error");
+    return;
+  }
+
+  setCourseQueryLoading(true);
+  setCourseQueryStatus("Searching saved courses and default course data locally...", "active");
+
+  try {
+    const result = await globalThis.JimaCourseResolver.resolveCourses(query);
+    renderCourseMatches(result.matches || [], query);
+  } catch {
+    setCourseQueryStatus("Jima could not search saved courses right now.", "error");
+  } finally {
+    setCourseQueryLoading(false);
+  }
+}
+
+function setCourseCheckButtonsDisabled(isDisabled) {
+  for (const button of Array.from(courseMatchesList?.querySelectorAll(".check-course-btn") || [])) {
+    button.disabled = isDisabled || !latestCourseMatches[Number(button.dataset.matchIndex)]?.isMoodle;
+  }
+}
+
+async function openAndAnalyzeCourseMatch(matchIndex) {
+  const match = latestCourseMatches[Number(matchIndex)];
+  if (!match) {
+    setCourseQueryStatus("Choose a course match first.", "error");
+    return;
+  }
+
+  if (!match.isMoodle) {
+    setCourseQueryStatus("Jima can only check BGU Moodle pages in this phase.", "error");
+    return;
+  }
+
+  setCourseCheckButtonsDisabled(true);
+  previewPanel.hidden = true;
+  aiPanel.hidden = true;
+  aiResults.hidden = true;
+  setCourseQueryStatus(`Opening ${match.name} and checking the visible Moodle page locally...`, "active");
+  setStatus("Jima is opening one confirmed course page and running local analysis.", "active");
+
+  chrome.runtime.sendMessage(
+    {
+      type: "JIMA_OPEN_AND_ANALYZE_COURSE",
+      course: {
+        name: match.name,
+        url: match.url
+      }
+    },
+    (response) => {
+      setCourseCheckButtonsDisabled(false);
+
+      if (chrome.runtime.lastError) {
+        const error = chrome.runtime.lastError.message || "Jima could not check this course.";
+        setCourseQueryStatus(error, "error");
+        setStatus(error, "error");
+        return;
+      }
+
+      if (!response?.ok) {
+        const error = response?.error || "Jima could not check this course.";
+        setCourseQueryStatus(error, "error");
+        setStatus(error, "error");
+        return;
+      }
+
+      renderContext(response.pageContext || response.context || {}, response.detections || {});
+      const homeworkCountValue = (response.detections?.homeworkCandidates || []).length;
+      setCourseQueryStatus(`I checked the saved Moodle page for ${match.name}.`, "success");
+      setStatus(
+        `I found ${homeworkCountValue} possible homework candidate${homeworkCountValue === 1 ? "" : "s"} from the visible course page. I cannot confirm submission status from this course page; a later phase can inspect assignment detail pages after explicit action.`,
+        "success"
+      );
+    }
+  );
 }
 
 function appendTaskAction(item, candidate, index) {
@@ -694,6 +852,33 @@ function downloadSelectedFiles() {
 
 if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);
+}
+
+if (findCourseBtn) {
+  findCourseBtn.addEventListener("click", () => {
+    findCourseFromQuery();
+  });
+}
+
+if (courseQueryInput) {
+  courseQueryInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      findCourseFromQuery();
+    }
+  });
+}
+
+if (courseMatchesList) {
+  courseMatchesList.addEventListener("click", (event) => {
+    const button = event.target?.closest?.(".check-course-btn");
+    if (!button) return;
+
+    openAndAnalyzeCourseMatch(button.dataset.matchIndex).catch(() => {
+      setCourseQueryStatus("Jima could not check this course.", "error");
+      setCourseCheckButtonsDisabled(false);
+    });
+  });
 }
 
 if (homeworkList) {
