@@ -51,6 +51,8 @@ const assignmentDetailDownloadControls = document.getElementById("assignmentDeta
 const downloadDetailSelectedBtn = document.getElementById("downloadDetailSelectedBtn");
 const assignmentDetailDownloadStatus = document.getElementById("assignmentDetailDownloadStatus");
 const assignmentDetailInstructions = document.getElementById("assignmentDetailInstructions");
+const saveDetailTaskBtn = document.getElementById("saveDetailTaskBtn");
+const saveDetailTaskStatus = document.getElementById("saveDetailTaskStatus");
 const followupInput = document.getElementById("followupInput");
 const followupSendBtn = document.getElementById("followupSendBtn");
 const followupStatus = document.getElementById("followupStatus");
@@ -71,6 +73,7 @@ let latestHomeworkCandidates = [];
 let latestSavedTasks = [];
 let latestCourseMatches = [];
 let latestAssignmentDetail = null;
+let latestAssignmentCandidate = null;
 let latestActiveAssignmentTitle = "";
 let latestAiAnalysis = null;
 
@@ -127,6 +130,12 @@ function setAssignmentDetailDownloadStatus(text, type = "") {
   if (!assignmentDetailDownloadStatus) return;
   assignmentDetailDownloadStatus.textContent = text;
   assignmentDetailDownloadStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
+}
+
+function setSaveDetailTaskStatus(text, type = "") {
+  if (!saveDetailTaskStatus) return;
+  saveDetailTaskStatus.textContent = text;
+  saveDetailTaskStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
 }
 
 function setFollowupStatus(text, type = "") {
@@ -756,6 +765,7 @@ function renderFileCandidates(candidates) {
 function clearAssignmentDetail() {
   latestAssignmentDetailFiles = [];
   latestAssignmentDetail = null;
+  latestAssignmentCandidate = null;
   latestActiveAssignmentTitle = "";
   jimaSessionMemory.latestInspectedAssignmentDetail = null;
   jimaSessionMemory.latestAssignmentFiles = [];
@@ -764,6 +774,7 @@ function clearAssignmentDetail() {
   if (assignmentDetailContent) assignmentDetailContent.hidden = true;
   setAssignmentDetailStatus("", "");
   setAssignmentDetailDownloadStatus("", "");
+  setSaveDetailTaskStatus("", "");
   if (assignmentDetailDates) clearList(assignmentDetailDates);
   if (assignmentDetailFiles) clearList(assignmentDetailFiles);
 }
@@ -823,6 +834,7 @@ function renderAssignmentDetail(detail) {
   if (!assignmentDetailPanel || !assignmentDetailContent) return;
 
   latestAssignmentDetail = detail;
+  latestAssignmentCandidate = latestAssignmentCandidate || {};
   latestActiveAssignmentTitle = detail.title || latestActiveAssignmentTitle || "";
   jimaSessionMemory.latestInspectedAssignmentDetail = detail;
   jimaSessionMemory.latestAssignmentFiles = (detail.files || []).filter((file) => file?.url);
@@ -838,6 +850,7 @@ function renderAssignmentDetail(detail) {
   renderAssignmentDetailStatus(detail.status || {});
   renderAssignmentDetailDates(detail.dueDates || []);
   renderAssignmentDetailFiles(detail.files || []);
+  setSaveDetailTaskStatus("", "");
 
   const statusValue = detail.status?.value;
   const statusNote = statusValue === "not_submitted"
@@ -956,6 +969,27 @@ function renderAiAnalysis(analysis) {
   aiResults.hidden = false;
 }
 
+function formatJimaTaskDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function appendSavedTaskDetail(item, label, value) {
+  if (!value) return;
+  const detail = document.createElement("div");
+  detail.className = "saved-task-detail";
+  detail.textContent = `${label}: ${value}`;
+  item.appendChild(detail);
+}
+
 function createSavedTaskCard(task) {
   const item = document.createElement("li");
   item.className = `saved-task-card${task.status === "done" ? " is-done" : ""}`;
@@ -990,10 +1024,39 @@ function createSavedTaskCard(task) {
     item.appendChild(evidence);
   }
 
+  appendSavedTaskDetail(
+    item,
+    "Visible submission evidence",
+    task.submissionStatusLabel
+      ? `${task.submissionStatusLabel}${task.submissionConfidence ? ` (${task.submissionConfidence})` : ""}`
+      : ""
+  );
+  appendSavedTaskDetail(item, "Submission evidence", task.submissionEvidence);
+  appendSavedTaskDetail(item, "Instruction preview", task.instructionPreview);
+  appendSavedTaskDetail(
+    item,
+    "Detail page date clue",
+    task.detailDueDateRaw
+      ? `${task.detailDueDateRaw}${task.detailDueDateEvidence ? ` - ${task.detailDueDateEvidence}` : ""}`
+      : task.detailDueDateEvidence
+  );
+  appendSavedTaskDetail(item, "Last inspected", formatJimaTaskDateTime(task.lastInspectedAt));
+
+  if (Array.isArray(task.detailFiles) && task.detailFiles.length > 0) {
+    const files = document.createElement("div");
+    files.className = "saved-task-detail";
+    const visibleFiles = task.detailFiles
+      .slice(0, 3)
+      .map((file) => file.fileType ? `${file.name} (${file.fileType})` : file.name)
+      .join(", ");
+    files.textContent = `Files listed on detail page: ${task.detailFiles.length} metadata item${task.detailFiles.length === 1 ? "" : "s"}${visibleFiles ? ` - ${visibleFiles}` : ""}. Jima has not read file contents.`;
+    item.appendChild(files);
+  }
+
   const actions = document.createElement("div");
   actions.className = "saved-task-actions";
 
-  const openUrl = task.candidateUrl || task.sourceUrl;
+  const openUrl = task.detailUrl || task.candidateUrl || task.sourceUrl;
   if (openUrl) {
     const openLink = document.createElement("a");
     openLink.href = openUrl;
@@ -1070,6 +1133,47 @@ async function saveHomeworkCandidate(candidateIndex) {
   setSavedTasksStatus(result.duplicate ? "This possible task was already saved." : "Saved possible task locally.", "success");
 }
 
+async function saveOrUpdateDetailTask() {
+  if (!latestAssignmentDetail || !globalThis.JimaTasks?.saveOrUpdateTaskFromDetail) {
+    setSaveDetailTaskStatus("Inspect an assignment detail page first.", "error");
+    return;
+  }
+
+  if (saveDetailTaskBtn) saveDetailTaskBtn.disabled = true;
+  setSaveDetailTaskStatus("Saving detail-page evidence locally...", "active");
+
+  try {
+    const result = await globalThis.JimaTasks.saveOrUpdateTaskFromDetail(
+      latestAssignmentDetail,
+      latestPageContext || {},
+      latestAssignmentCandidate || {}
+    );
+
+    latestSavedTasks = result.tasks;
+    renderSavedTasks(latestSavedTasks);
+    if (latestDetections) {
+      renderHomeworkCandidates(latestDetections.homeworkCandidates || []);
+    }
+
+    setSaveDetailTaskStatus(
+      result.created
+        ? "Created a saved possible task from this detail page."
+        : "Updated the related saved task with detail-page evidence.",
+      "success"
+    );
+    setSavedTasksStatus(
+      result.created
+        ? "Saved new task locally from assignment details."
+        : "Updated saved task locally with assignment details.",
+      "success"
+    );
+  } catch {
+    setSaveDetailTaskStatus("Could not save these assignment details.", "error");
+  } finally {
+    if (saveDetailTaskBtn) saveDetailTaskBtn.disabled = false;
+  }
+}
+
 function setDetailButtonsDisabled(isDisabled) {
   for (const button of Array.from(homeworkList?.querySelectorAll(".check-detail-btn") || [])) {
     button.disabled = isDisabled || !isSafeMoodleDetailUrl(latestHomeworkCandidates[Number(button.dataset.candidateIndex)]?.url);
@@ -1092,9 +1196,11 @@ function inspectAssignmentDetail(candidateIndex) {
   if (assignmentDetailContent) assignmentDetailContent.hidden = true;
   latestAssignmentDetailFiles = [];
   latestAssignmentDetail = null;
+  latestAssignmentCandidate = candidate;
   latestActiveAssignmentTitle = candidate.title || "Selected assignment";
   jimaSessionMemory.latestActiveAssignmentTitle = latestActiveAssignmentTitle;
   setAssignmentDetailDownloadStatus("", "");
+  setSaveDetailTaskStatus("", "");
   clearFollowupResults();
   setDetailButtonsDisabled(true);
   setAssignmentDetailStatus("Opening the selected assignment detail page and checking visible evidence locally...", "active");
@@ -1155,6 +1261,7 @@ function analyzeCurrentPage() {
   latestFollowupFiles = [];
   latestHomeworkCandidates = [];
   latestAssignmentDetail = null;
+  latestAssignmentCandidate = null;
   latestActiveAssignmentTitle = "";
   latestAiAnalysis = null;
   Object.assign(jimaSessionMemory, {
@@ -1407,6 +1514,12 @@ if (assignmentDetailFiles) {
 
 if (downloadDetailSelectedBtn) {
   downloadDetailSelectedBtn.addEventListener("click", () => downloadSelectedFiles("detail"));
+}
+
+if (saveDetailTaskBtn) {
+  saveDetailTaskBtn.addEventListener("click", () => {
+    saveOrUpdateDetailTask();
+  });
 }
 
 if (followupSendBtn) {
