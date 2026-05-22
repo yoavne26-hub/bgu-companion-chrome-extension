@@ -317,7 +317,8 @@ h1 {
 .download-controls[hidden],
 .followup-results[hidden],
 .assignment-detail-panel[hidden],
-.assignment-detail-content[hidden] {
+.assignment-detail-content[hidden],
+.local-answer-panel[hidden] {
   display: none;
 }
 
@@ -414,6 +415,39 @@ h1 {
   font-size: 12px;
   font-weight: 650;
   line-height: 1.45;
+}
+
+.local-answer-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-left: 4px solid var(--accent);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 13px;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.07);
+}
+
+.local-answer-panel h2 {
+  color: var(--primary-dark);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.local-answer-panel p,
+.local-answer-list li {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.local-answer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
 }
 
 .field-label {

@@ -11,6 +11,9 @@ const previewPanel = document.getElementById("previewPanel");
 const previewMeta = document.getElementById("previewMeta");
 const previewTitle = document.getElementById("previewTitle");
 const previewUrl = document.getElementById("previewUrl");
+const localAnswerPanel = document.getElementById("localAnswerPanel");
+const localAnswerText = document.getElementById("localAnswerText");
+const localAnswerList = document.getElementById("localAnswerList");
 const homeworkCount = document.getElementById("homeworkCount");
 const homeworkList = document.getElementById("homeworkList");
 const datesCount = document.getElementById("datesCount");
@@ -76,6 +79,7 @@ let latestAssignmentDetail = null;
 let latestAssignmentCandidate = null;
 let latestActiveAssignmentTitle = "";
 let latestAiAnalysis = null;
+let latestCheckedCourseName = "";
 
 const jimaSessionMemory = {
   latestAnalyzedCoursePageContext: null,
@@ -212,6 +216,122 @@ function appendLinkRow(listEl, link) {
   anchor.textContent = link.text || link.url;
   item.appendChild(anchor);
   listEl.appendChild(item);
+}
+
+function countLabel(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function countOrNone(count, singular, plural = `${singular}s`) {
+  return count === 0 ? `no ${plural}` : countLabel(count, singular, plural);
+}
+
+function getPageTitleForSummary(pageContext, fallback = "") {
+  return (
+    String(fallback || "").trim() ||
+    pageContext?.pageTitle ||
+    pageContext?.documentTitle ||
+    "this Moodle page"
+  );
+}
+
+function renderLocalAnswer(summary, bullets = []) {
+  if (!localAnswerPanel || !localAnswerText || !localAnswerList) return;
+
+  localAnswerText.textContent = summary || "";
+  clearList(localAnswerList);
+
+  for (const bullet of bullets.filter(Boolean)) {
+    const item = document.createElement("li");
+    item.textContent = bullet;
+    localAnswerList.appendChild(item);
+  }
+
+  localAnswerPanel.hidden = !summary && bullets.length === 0;
+}
+
+function clearLocalAnswer() {
+  if (!localAnswerPanel) return;
+  localAnswerPanel.hidden = true;
+  if (localAnswerText) localAnswerText.textContent = "";
+  if (localAnswerList) clearList(localAnswerList);
+}
+
+function buildCourseLocalSummary(pageContext, detections = {}, courseName = "") {
+  const homeworkCountValue = (detections.homeworkCandidates || []).length;
+  const dateCountValue = (detections.deadlineCandidates || []).length;
+  const fileCountValue = (detections.fileCandidates || []).length;
+  const pageLabel = getPageTitleForSummary(pageContext, courseName);
+
+  const homeworkSentence = homeworkCountValue > 0
+    ? `I found ${countLabel(homeworkCountValue, "possible homework item")}`
+    : "I did not find clear homework candidates in the visible page text";
+  const summary = `I checked the visible Moodle page for ${pageLabel}. ${homeworkSentence}. I also found ${countOrNone(dateCountValue, "date clue")} and ${countOrNone(fileCountValue, "file resource")}. I cannot confirm whether homework was submitted from the course page alone.`;
+  const bullets = [];
+
+  if (homeworkCountValue > 0) {
+    bullets.push("Use Check details for a specific assignment to look for visible submission status.");
+  } else {
+    bullets.push("No clear homework candidate appears in the visible page text.");
+  }
+
+  if (dateCountValue > 0) {
+    bullets.push("Date clues are shown as evidence, not confirmed final deadlines.");
+  }
+
+  if (fileCountValue > 0) {
+    bullets.push("Files are visible resources only. Jima has not read file contents.");
+  }
+
+  return { summary, bullets };
+}
+
+function buildAssignmentDetailLocalSummary(detail = {}, extraBullet = "") {
+  const title = detail.title || latestActiveAssignmentTitle || "this assignment";
+  const statusValue = detail.status?.value || "unknown";
+  const dateCountValue = (detail.dueDates || []).length;
+  const fileCountValue = (detail.files || []).length;
+  const hasInstructions = Boolean(detail.instructionsPreview || detail.textPreview);
+  const statusText = {
+    not_submitted: "Visible Moodle text suggests this assignment may be not submitted.",
+    submitted: "Visible Moodle text suggests this assignment may be submitted.",
+    draft: "Visible Moodle text suggests this assignment may be in draft status."
+  }[statusValue] || "I could not confirm submission status from the visible text.";
+
+  const summary = `I checked the assignment detail page for ${title}. ${statusText}`;
+  const bullets = [];
+
+  if (dateCountValue > 0) {
+    bullets.push(`I found ${countLabel(dateCountValue, "date clue")}, but I cannot confirm each one is the final deadline.`);
+  } else {
+    bullets.push("No clear due date evidence was visible on this detail page.");
+  }
+
+  if (fileCountValue > 0) {
+    bullets.push(`I found ${countLabel(fileCountValue, "file resource")}. I have not read the file contents.`);
+  }
+
+  if (hasInstructions) {
+    bullets.push("There is a visible instruction preview from the detail page.");
+  }
+
+  if (detail.status?.uncertainty) {
+    bullets.push(`Uncertainty: ${detail.status.uncertainty}`);
+  }
+
+  if (extraBullet) bullets.push(extraBullet);
+
+  return { summary, bullets };
+}
+
+function renderCourseLocalAnswer(pageContext, detections, courseName = "") {
+  const answer = buildCourseLocalSummary(pageContext, detections, courseName);
+  renderLocalAnswer(answer.summary, answer.bullets);
+}
+
+function renderAssignmentDetailLocalAnswer(detail, extraBullet = "") {
+  const answer = buildAssignmentDetailLocalSummary(detail, extraBullet);
+  renderLocalAnswer(answer.summary, answer.bullets);
 }
 
 function confidenceClass(confidence) {
@@ -370,9 +490,11 @@ async function openAndAnalyzeCourseMatch(matchIndex) {
   }
 
   setCourseCheckButtonsDisabled(true);
+  latestCheckedCourseName = match.name || "";
   previewPanel.hidden = true;
   clearAssignmentDetail();
   clearFollowupResults();
+  clearLocalAnswer();
   aiPanel.hidden = true;
   aiResults.hidden = true;
   setCourseQueryStatus(`Opening ${match.name} and checking the visible Moodle page locally...`, "active");
@@ -851,6 +973,7 @@ function renderAssignmentDetail(detail) {
   renderAssignmentDetailDates(detail.dueDates || []);
   renderAssignmentDetailFiles(detail.files || []);
   setSaveDetailTaskStatus("", "");
+  renderAssignmentDetailLocalAnswer(detail);
 
   const statusValue = detail.status?.value;
   const statusNote = statusValue === "not_submitted"
@@ -890,6 +1013,7 @@ function renderContext(pageContext, detections) {
   jimaSessionMemory.latestAnalyzedCoursePageContext = pageContext;
   jimaSessionMemory.latestHomeworkCandidates = latestDetections.homeworkCandidates || [];
   jimaSessionMemory.latestCourseFileCandidates = latestFileCandidates;
+  renderCourseLocalAnswer(pageContext, latestDetections, latestCheckedCourseName);
 
   previewPanel.hidden = false;
   aiPanel.hidden = false;
@@ -1167,6 +1291,12 @@ async function saveOrUpdateDetailTask() {
         : "Updated saved task locally with assignment details.",
       "success"
     );
+    renderAssignmentDetailLocalAnswer(
+      latestAssignmentDetail,
+      result.created
+        ? "Saved this detail-page evidence as a new local task."
+        : "Updated the related local task with this detail-page evidence."
+    );
   } catch {
     setSaveDetailTaskStatus("Could not save these assignment details.", "error");
   } finally {
@@ -1264,6 +1394,7 @@ function analyzeCurrentPage() {
   latestAssignmentCandidate = null;
   latestActiveAssignmentTitle = "";
   latestAiAnalysis = null;
+  latestCheckedCourseName = "";
   Object.assign(jimaSessionMemory, {
     latestAnalyzedCoursePageContext: null,
     latestHomeworkCandidates: [],
@@ -1277,6 +1408,7 @@ function analyzeCurrentPage() {
   previewPanel.hidden = true;
   clearAssignmentDetail();
   clearFollowupResults();
+  clearLocalAnswer();
   downloadControls.hidden = true;
   aiPanel.hidden = true;
   aiResults.hidden = true;

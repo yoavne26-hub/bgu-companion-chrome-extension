@@ -69,6 +69,8 @@ Local follow-up routing in the side panel is also handled entirely by the Chrome
 
 Assignment detail evidence can be saved back into local Jima tasks in `chrome.storage.local`. The saved detail fields include visible submission/date evidence, a short instruction preview, and detail-page file metadata only. File contents are not read, uploaded, summarized, or sent to this backend.
 
+The side panel also shows local answer summaries after page checks and assignment detail inspections. These summaries are rule-based, generated inside the extension from already visible extracted context and detections, and do not call this backend or OpenAI.
+
 ## Endpoints
 
 ### GET /health
@@ -126,4 +128,5 @@ If `OPENAI_API_KEY` is missing, the endpoint returns a clear configuration error
 - Assignment detail checks are local extension actions and do not call this backend.
 - Local follow-up action routing is local and does not call this backend or OpenAI.
 - Saved assignment detail evidence stays local in browser storage; detail file entries are metadata only.
+- Local answer summaries are generated in the extension and do not call this backend or OpenAI.
 - CORS is not enabled because the extension routes local backend calls through its background service worker with a narrow localhost host permission.
