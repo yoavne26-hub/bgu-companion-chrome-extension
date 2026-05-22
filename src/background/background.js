@@ -4,7 +4,9 @@ const JIMA_MESSAGES = Object.freeze({
   GET_MOODLE_CONTEXT: "JIMA_GET_MOODLE_CONTEXT",
   ANALYZE_WITH_AI: "JIMA_ANALYZE_WITH_AI",
   DOWNLOAD_SELECTED_FILES: "JIMA_DOWNLOAD_SELECTED_FILES",
-  OPEN_AND_ANALYZE_COURSE: "JIMA_OPEN_AND_ANALYZE_COURSE"
+  OPEN_AND_ANALYZE_COURSE: "JIMA_OPEN_AND_ANALYZE_COURSE",
+  INSPECT_ASSIGNMENT_DETAIL: "JIMA_INSPECT_ASSIGNMENT_DETAIL",
+  OPEN_AND_INSPECT_ASSIGNMENT: "JIMA_OPEN_AND_INSPECT_ASSIGNMENT"
 });
 
 const JIMA_BACKEND_ANALYZE_URL = "http://localhost:3000/api/jima/analyze-context";
@@ -46,6 +48,45 @@ function isSafeMoodleCourseUrl(url) {
   } catch {
     return false;
   }
+}
+
+function validateJimaAssignmentDetailUrl(url) {
+  const rawUrl = String(url || "").trim();
+  if (!rawUrl) {
+    return {
+      ok: false,
+      error: "No assignment detail URL was provided."
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return {
+      ok: false,
+      error: "This assignment detail link is not a valid URL."
+    };
+  }
+
+  if (/^(javascript|data|blob):$/i.test(parsed.protocol)) {
+    return {
+      ok: false,
+      error: "Jima will not open unsafe assignment detail links."
+    };
+  }
+
+  if (parsed.protocol !== "https:" || parsed.hostname !== "moodle.bgu.ac.il") {
+    return {
+      ok: false,
+      error: "Jima can only inspect HTTPS BGU Moodle detail pages in this phase."
+    };
+  }
+
+  return {
+    ok: true,
+    url: parsed.href
+  };
 }
 
 function waitForTabComplete(tabId, timeoutMs = JIMA_COURSE_ANALYSIS_TIMEOUT_MS) {
@@ -162,6 +203,42 @@ async function openAndAnalyzeCourse(course) {
     course: {
       name,
       url,
+      tabId: tab.id
+    }
+  };
+}
+
+async function openAndInspectAssignmentDetail(assignment) {
+  const validation = validateJimaAssignmentDetailUrl(assignment?.url);
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const tab = await openOrFocusCourseTab(validation.url);
+  if (!tab?.id) {
+    return {
+      ok: false,
+      error: "Jima could not open this assignment detail page."
+    };
+  }
+
+  await waitForTabComplete(tab.id);
+  const response = await sendTabMessageWithRetry(tab.id, {
+    type: JIMA_MESSAGES.INSPECT_ASSIGNMENT_DETAIL
+  });
+
+  if (!response?.ok) {
+    return response || {
+      ok: false,
+      error: "Jima could not inspect this assignment detail page."
+    };
+  }
+
+  return {
+    ...response,
+    assignment: {
+      title: String(assignment?.title || "Possible assignment").trim(),
+      url: validation.url,
       tabId: tab.id
     }
   };
@@ -437,6 +514,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({
           ok: false,
           error: error?.message || "Jima could not open and check this course."
+        });
+      });
+
+    return true;
+  }
+
+  if (message?.type === JIMA_MESSAGES.OPEN_AND_INSPECT_ASSIGNMENT) {
+    openAndInspectAssignmentDetail(message.assignment)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error?.message || "Jima could not inspect this assignment detail page."
         });
       });
 

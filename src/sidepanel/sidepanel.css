@@ -287,7 +287,9 @@ h1 {
 
 .ai-panel[hidden],
 .ai-results[hidden],
-.download-controls[hidden] {
+.download-controls[hidden],
+.assignment-detail-panel[hidden],
+.assignment-detail-content[hidden] {
   display: none;
 }
 
@@ -553,6 +555,8 @@ h1 {
 
 .candidate-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
   justify-content: flex-end;
   margin-top: 9px;
 }
@@ -602,6 +606,39 @@ h1 {
   color: #475569;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.assignment-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assignment-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-box {
+  border: 1px solid rgba(219, 229, 241, 0.9);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.detail-value {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .status-message.compact {

@@ -69,6 +69,47 @@
           <ul id="homeworkList" class="candidate-list"></ul>
         </div>
 
+        <section id="assignmentDetailPanel" class="assignment-detail-panel" aria-label="Assignment detail inspection" hidden>
+          <div class="preview-section">
+            <h3>Assignment detail checked</h3>
+            <div id="assignmentDetailStatus" class="status-message compact" role="status" aria-live="polite"></div>
+            <div id="assignmentDetailContent" class="assignment-detail-content" hidden>
+              <div class="preview-field">
+                <span class="field-label">Detail page</span>
+                <strong id="assignmentDetailTitle"></strong>
+                <a id="assignmentDetailUrl" class="preview-url" href="#"></a>
+              </div>
+              <div class="detail-grid">
+                <div class="detail-box">
+                  <span class="field-label">Visible status evidence</span>
+                  <div id="assignmentDetailSubmissionStatus" class="detail-value"></div>
+                </div>
+                <div class="detail-box">
+                  <span class="field-label">Due date evidence</span>
+                  <ul id="assignmentDetailDates" class="candidate-list"></ul>
+                </div>
+                <div class="detail-box">
+                  <span class="field-label">Files on detail page</span>
+                  <ul id="assignmentDetailFiles" class="candidate-list"></ul>
+                  <div id="assignmentDetailDownloadControls" class="download-controls" hidden>
+                    <p class="download-note">
+                      Downloads only start after you select detail-page files and click download. Jima does not read or upload file contents.
+                    </p>
+                    <button id="downloadDetailSelectedBtn" class="secondary-action" type="button" disabled>
+                      Download selected detail files
+                    </button>
+                    <div id="assignmentDetailDownloadStatus" class="status-message compact" role="status" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-section">
+                <h3>Instructions preview</h3>
+                <p id="assignmentDetailInstructions" class="text-preview"></p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div class="preview-section detection-section">
           <h3>Possible dates <span id="datesCount"></span></h3>
           <ul id="datesList" class="candidate-list"></ul>

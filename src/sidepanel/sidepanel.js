@@ -39,10 +39,23 @@ const aiUncertainties = document.getElementById("aiUncertainties");
 const savedTasksCount = document.getElementById("savedTasksCount");
 const savedTasksList = document.getElementById("savedTasksList");
 const savedTasksStatus = document.getElementById("savedTasksStatus");
+const assignmentDetailPanel = document.getElementById("assignmentDetailPanel");
+const assignmentDetailStatus = document.getElementById("assignmentDetailStatus");
+const assignmentDetailContent = document.getElementById("assignmentDetailContent");
+const assignmentDetailTitle = document.getElementById("assignmentDetailTitle");
+const assignmentDetailUrl = document.getElementById("assignmentDetailUrl");
+const assignmentDetailSubmissionStatus = document.getElementById("assignmentDetailSubmissionStatus");
+const assignmentDetailDates = document.getElementById("assignmentDetailDates");
+const assignmentDetailFiles = document.getElementById("assignmentDetailFiles");
+const assignmentDetailDownloadControls = document.getElementById("assignmentDetailDownloadControls");
+const downloadDetailSelectedBtn = document.getElementById("downloadDetailSelectedBtn");
+const assignmentDetailDownloadStatus = document.getElementById("assignmentDetailDownloadStatus");
+const assignmentDetailInstructions = document.getElementById("assignmentDetailInstructions");
 
 let latestPageContext = null;
 let latestDetections = null;
 let latestFileCandidates = [];
+let latestAssignmentDetailFiles = [];
 let latestHomeworkCandidates = [];
 let latestSavedTasks = [];
 let latestCourseMatches = [];
@@ -77,6 +90,18 @@ function setSavedTasksStatus(text, type = "") {
   savedTasksStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
 }
 
+function setAssignmentDetailStatus(text, type = "") {
+  if (!assignmentDetailStatus) return;
+  assignmentDetailStatus.textContent = text;
+  assignmentDetailStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
+}
+
+function setAssignmentDetailDownloadStatus(text, type = "") {
+  if (!assignmentDetailDownloadStatus) return;
+  assignmentDetailDownloadStatus.textContent = text;
+  assignmentDetailDownloadStatus.className = `status-message compact${type ? ` is-${type}` : ""}`;
+}
+
 function setLoading(isLoading) {
   if (!analyzePageBtn) return;
   analyzePageBtn.disabled = isLoading;
@@ -97,8 +122,14 @@ function setAiLoading(isLoading) {
 
 function setDownloadLoading(isLoading) {
   if (!downloadSelectedBtn) return;
-  downloadSelectedBtn.disabled = isLoading || getSelectedFileCandidates().length === 0;
+  downloadSelectedBtn.disabled = isLoading || getSelectedFileCandidates("page").length === 0;
   downloadSelectedBtn.textContent = isLoading ? "Starting downloads..." : "Download selected files";
+}
+
+function setAssignmentDetailDownloadLoading(isLoading) {
+  if (!downloadDetailSelectedBtn) return;
+  downloadDetailSelectedBtn.disabled = isLoading || getSelectedFileCandidates("detail").length === 0;
+  downloadDetailSelectedBtn.textContent = isLoading ? "Starting downloads..." : "Download selected detail files";
 }
 
 function clearList(listEl) {
@@ -171,6 +202,19 @@ function appendCandidateText(item, className, text) {
   line.className = className;
   line.textContent = text;
   item.appendChild(line);
+}
+
+function isSafeMoodleDetailUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      parsed.hostname === "moodle.bgu.ac.il" &&
+      /\/mod\/(assign|quiz|workshop|lesson|forum)\/view\.php/i.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function renderCourseMatches(matches, query) {
@@ -273,6 +317,7 @@ async function openAndAnalyzeCourseMatch(matchIndex) {
 
   setCourseCheckButtonsDisabled(true);
   previewPanel.hidden = true;
+  clearAssignmentDetail();
   aiPanel.hidden = true;
   aiResults.hidden = true;
   setCourseQueryStatus(`Opening ${match.name} and checking the visible Moodle page locally...`, "active");
@@ -318,11 +363,22 @@ function appendTaskAction(item, candidate, index) {
   const actions = document.createElement("div");
   actions.className = "candidate-actions";
 
+  const detailButton = document.createElement("button");
+  detailButton.type = "button";
+  detailButton.className = "task-action-btn check-detail-btn";
+  detailButton.dataset.candidateIndex = String(index);
+
+  if (isSafeMoodleDetailUrl(candidate?.url)) {
+    detailButton.textContent = "Check details";
+  } else {
+    detailButton.textContent = "No detail link detected";
+    detailButton.disabled = true;
+  }
+
   const button = document.createElement("button");
   button.type = "button";
   button.className = "task-action-btn save-task-btn";
   button.dataset.candidateIndex = String(index);
-
   const draft = globalThis.JimaTasks?.createTaskFromCandidate(candidate, latestPageContext || {});
   const isSaved = draft
     ? latestSavedTasks.some((task) => globalThis.JimaTasks.isDuplicateTask(task, draft))
@@ -330,29 +386,34 @@ function appendTaskAction(item, candidate, index) {
 
   button.textContent = isSaved ? "Saved" : "Save task";
   button.disabled = isSaved || !globalThis.JimaTasks;
+  actions.appendChild(detailButton);
   actions.appendChild(button);
   item.appendChild(actions);
 }
 
-function getSelectedFileCandidates() {
-  if (!filesList) return [];
+function getSelectedFileCandidates(scope = "page") {
+  const listEl = scope === "detail" ? assignmentDetailFiles : filesList;
+  const source = scope === "detail" ? latestAssignmentDetailFiles : latestFileCandidates;
+  if (!listEl) return [];
 
-  return Array.from(filesList.querySelectorAll(".file-select-input:checked"))
-    .map((input) => latestFileCandidates[Number(input.dataset.fileIndex)])
+  return Array.from(listEl.querySelectorAll(".file-select-input:checked"))
+    .map((input) => source[Number(input.dataset.fileIndex)])
     .filter((candidate) => candidate?.url);
 }
 
-function updateDownloadButtonState() {
-  if (!downloadSelectedBtn) return;
+function updateDownloadButtonState(scope = "page") {
+  const button = scope === "detail" ? downloadDetailSelectedBtn : downloadSelectedBtn;
+  if (!button) return;
 
-  const selectedCount = getSelectedFileCandidates().length;
-  downloadSelectedBtn.disabled = selectedCount === 0;
-  downloadSelectedBtn.textContent = selectedCount > 0
-    ? `Download selected files (${selectedCount})`
-    : "Download selected files";
+  const selectedCount = getSelectedFileCandidates(scope).length;
+  const baseText = scope === "detail" ? "Download selected detail files" : "Download selected files";
+  button.disabled = selectedCount === 0;
+  button.textContent = selectedCount > 0
+    ? `${baseText} (${selectedCount})`
+    : baseText;
 }
 
-function createFileCandidateCard(candidate, index) {
+function createFileCandidateCard(candidate, index, scope = "page") {
   const item = document.createElement("li");
   item.className = "candidate-card file-candidate-card";
 
@@ -364,6 +425,7 @@ function createFileCandidateCard(candidate, index) {
   checkbox.type = "checkbox";
   checkbox.className = "file-select-input";
   checkbox.dataset.fileIndex = String(index);
+  checkbox.dataset.fileScope = scope;
   checkbox.disabled = !candidate.url;
   selectWrapper.appendChild(checkbox);
 
@@ -467,7 +529,7 @@ function renderFileCandidates(candidates) {
   filesCount.textContent = `(${candidates.length})`;
   downloadControls.hidden = candidates.length === 0;
   setDownloadStatus("", "");
-  updateDownloadButtonState();
+  updateDownloadButtonState("page");
 
   if (candidates.length === 0) {
     appendEmptyRow(filesList, "No Moodle file links were detected on this page.");
@@ -477,7 +539,7 @@ function renderFileCandidates(candidates) {
   }
 
   for (const [index, candidate] of latestFileCandidates.entries()) {
-    filesList.appendChild(createFileCandidateCard(candidate, index));
+    filesList.appendChild(createFileCandidateCard(candidate, index, "page"));
   }
 
   if (latestFileCandidates.length === 0) {
@@ -486,7 +548,92 @@ function renderFileCandidates(candidates) {
     return;
   }
 
-  updateDownloadButtonState();
+  updateDownloadButtonState("page");
+}
+
+function clearAssignmentDetail() {
+  latestAssignmentDetailFiles = [];
+  if (assignmentDetailPanel) assignmentDetailPanel.hidden = true;
+  if (assignmentDetailContent) assignmentDetailContent.hidden = true;
+  setAssignmentDetailStatus("", "");
+  setAssignmentDetailDownloadStatus("", "");
+  if (assignmentDetailDates) clearList(assignmentDetailDates);
+  if (assignmentDetailFiles) clearList(assignmentDetailFiles);
+}
+
+function renderAssignmentDetailDates(dates) {
+  clearList(assignmentDetailDates);
+
+  if (!dates.length) {
+    appendEmptyRow(assignmentDetailDates, "No clear due date evidence was visible on this detail page.");
+    return;
+  }
+
+  for (const date of dates.slice(0, 8)) {
+    const item = createCandidateCard(date.rawDate || "Date clue", date.confidence, "");
+    appendCandidateText(item, "candidate-evidence", date.surroundingText ? `Context: ${date.surroundingText}` : "");
+    appendCandidateText(item, "candidate-uncertainty", date.uncertainty);
+    assignmentDetailDates.appendChild(item);
+  }
+}
+
+function renderAssignmentDetailFiles(files) {
+  clearList(assignmentDetailFiles);
+  latestAssignmentDetailFiles = (files || []).filter((candidate) => candidate?.url);
+  assignmentDetailDownloadControls.hidden = latestAssignmentDetailFiles.length === 0;
+  setAssignmentDetailDownloadStatus("", "");
+
+  if (!files.length) {
+    appendEmptyRow(assignmentDetailFiles, "No file/resource links were detected on this detail page.");
+    updateDownloadButtonState("detail");
+    return;
+  }
+
+  if (latestAssignmentDetailFiles.length === 0) {
+    appendEmptyRow(assignmentDetailFiles, "File-like items were found, but none had downloadable Moodle URLs.");
+    assignmentDetailDownloadControls.hidden = true;
+    updateDownloadButtonState("detail");
+    return;
+  }
+
+  for (const [index, file] of latestAssignmentDetailFiles.entries()) {
+    assignmentDetailFiles.appendChild(createFileCandidateCard(file, index, "detail"));
+  }
+
+  updateDownloadButtonState("detail");
+}
+
+function renderAssignmentDetailStatus(status) {
+  const statusValue = status?.label || "Unknown";
+  const confidence = status?.confidence || "Low";
+  const parts = [`Status: ${statusValue}`, `Confidence: ${confidence}`];
+  if (status?.evidence) parts.push(`Evidence: ${status.evidence}`);
+  if (status?.uncertainty) parts.push(`Uncertainty: ${status.uncertainty}`);
+  assignmentDetailSubmissionStatus.textContent = parts.join(" | ");
+}
+
+function renderAssignmentDetail(detail) {
+  if (!assignmentDetailPanel || !assignmentDetailContent) return;
+
+  assignmentDetailPanel.hidden = false;
+  assignmentDetailContent.hidden = false;
+  assignmentDetailTitle.textContent = detail.title || "Assignment detail page";
+  assignmentDetailUrl.href = detail.url || "#";
+  assignmentDetailUrl.textContent = detail.url || "No URL available";
+  assignmentDetailInstructions.textContent = detail.instructionsPreview || detail.textPreview || "No instruction preview was visible.";
+
+  renderAssignmentDetailStatus(detail.status || {});
+  renderAssignmentDetailDates(detail.dueDates || []);
+  renderAssignmentDetailFiles(detail.files || []);
+
+  const statusValue = detail.status?.value;
+  const statusNote = statusValue === "not_submitted"
+    ? "I found visible evidence that this may be not submitted. Confirm in Moodle before acting."
+    : statusValue === "submitted"
+      ? "I found visible evidence that this may be submitted."
+      : "I cannot confirm submission status from the visible text.";
+
+  setAssignmentDetailStatus(`${statusNote} Detail-page inspection stayed local.`, "success");
 }
 
 function renderDetections(detections = {}) {
@@ -512,6 +659,7 @@ function renderContext(pageContext, detections) {
   renderDetections(latestDetections);
   renderHeadings(headings);
   renderFileLinks(fileLinks);
+  clearAssignmentDetail();
 
   previewPanel.hidden = false;
   aiPanel.hidden = false;
@@ -703,6 +851,57 @@ async function saveHomeworkCandidate(candidateIndex) {
   setSavedTasksStatus(result.duplicate ? "This possible task was already saved." : "Saved possible task locally.", "success");
 }
 
+function setDetailButtonsDisabled(isDisabled) {
+  for (const button of Array.from(homeworkList?.querySelectorAll(".check-detail-btn") || [])) {
+    button.disabled = isDisabled || !isSafeMoodleDetailUrl(latestHomeworkCandidates[Number(button.dataset.candidateIndex)]?.url);
+  }
+}
+
+function inspectAssignmentDetail(candidateIndex) {
+  const candidate = latestHomeworkCandidates[Number(candidateIndex)];
+  if (!candidate) {
+    setAssignmentDetailStatus("Choose a homework candidate first.", "error");
+    return;
+  }
+
+  if (!isSafeMoodleDetailUrl(candidate.url)) {
+    setAssignmentDetailStatus("Jima can only inspect HTTPS BGU Moodle detail links in this phase.", "error");
+    return;
+  }
+
+  if (assignmentDetailPanel) assignmentDetailPanel.hidden = false;
+  if (assignmentDetailContent) assignmentDetailContent.hidden = true;
+  latestAssignmentDetailFiles = [];
+  setAssignmentDetailDownloadStatus("", "");
+  setDetailButtonsDisabled(true);
+  setAssignmentDetailStatus("Opening the selected assignment detail page and checking visible evidence locally...", "active");
+
+  chrome.runtime.sendMessage(
+    {
+      type: "JIMA_OPEN_AND_INSPECT_ASSIGNMENT",
+      assignment: {
+        title: candidate.title || "Possible homework",
+        url: candidate.url
+      }
+    },
+    (response) => {
+      setDetailButtonsDisabled(false);
+
+      if (chrome.runtime.lastError) {
+        setAssignmentDetailStatus(chrome.runtime.lastError.message || "Jima could not inspect this detail page.", "error");
+        return;
+      }
+
+      if (!response?.ok) {
+        setAssignmentDetailStatus(response?.error || "Jima could not inspect this detail page.", "error");
+        return;
+      }
+
+      renderAssignmentDetail(response.assignmentDetail || {});
+    }
+  );
+}
+
 async function handleSavedTaskAction(action, taskId) {
   if (!globalThis.JimaTasks || !taskId) return;
 
@@ -729,9 +928,11 @@ function analyzeCurrentPage() {
   latestPageContext = null;
   latestDetections = null;
   latestFileCandidates = [];
+  latestAssignmentDetailFiles = [];
   latestHomeworkCandidates = [];
   setLoading(true);
   previewPanel.hidden = true;
+  clearAssignmentDetail();
   downloadControls.hidden = true;
   aiPanel.hidden = true;
   aiResults.hidden = true;
@@ -792,7 +993,7 @@ function askJimaWithAi() {
   );
 }
 
-function renderDownloadResult(response) {
+function renderScopedDownloadResult(response, scope = "page") {
   const summary = response?.summary || {};
   const started = summary.started || 0;
   const skipped = summary.skipped || 0;
@@ -811,19 +1012,33 @@ function renderDownloadResult(response) {
     ? `${parts.join(", ")}. Chrome is handling started downloads.${details.length ? ` ${details.join(" ")}` : ""}`
     : response?.error || "No downloads were started.";
 
-  setDownloadStatus(message, started > 0 && failed === 0 ? "success" : "error");
-}
-
-function downloadSelectedFiles() {
-  const selectedFiles = getSelectedFileCandidates();
-  if (selectedFiles.length === 0) {
-    setDownloadStatus("Select at least one file before downloading.", "error");
-    updateDownloadButtonState();
+  if (scope === "detail") {
+    setAssignmentDetailDownloadStatus(message, started > 0 && failed === 0 ? "success" : "error");
     return;
   }
 
-  setDownloadLoading(true);
-  setDownloadStatus("Starting selected downloads in Chrome...", "active");
+  setDownloadStatus(message, started > 0 && failed === 0 ? "success" : "error");
+}
+
+function downloadSelectedFiles(scope = "page") {
+  const selectedFiles = getSelectedFileCandidates(scope);
+  if (selectedFiles.length === 0) {
+    if (scope === "detail") {
+      setAssignmentDetailDownloadStatus("Select at least one detail-page file before downloading.", "error");
+    } else {
+      setDownloadStatus("Select at least one file before downloading.", "error");
+    }
+    updateDownloadButtonState(scope);
+    return;
+  }
+
+  if (scope === "detail") {
+    setAssignmentDetailDownloadLoading(true);
+    setAssignmentDetailDownloadStatus("Starting selected detail-page downloads in Chrome...", "active");
+  } else {
+    setDownloadLoading(true);
+    setDownloadStatus("Starting selected downloads in Chrome...", "active");
+  }
 
   chrome.runtime.sendMessage(
     {
@@ -837,15 +1052,24 @@ function downloadSelectedFiles() {
       }))
     },
     (response) => {
-      setDownloadLoading(false);
-      updateDownloadButtonState();
+      if (scope === "detail") {
+        setAssignmentDetailDownloadLoading(false);
+      } else {
+        setDownloadLoading(false);
+      }
+      updateDownloadButtonState(scope);
 
       if (chrome.runtime.lastError) {
-        setDownloadStatus(chrome.runtime.lastError.message || "Jima could not start downloads.", "error");
+        const error = chrome.runtime.lastError.message || "Jima could not start downloads.";
+        if (scope === "detail") {
+          setAssignmentDetailDownloadStatus(error, "error");
+        } else {
+          setDownloadStatus(error, "error");
+        }
         return;
       }
 
-      renderDownloadResult(response || {});
+      renderScopedDownloadResult(response || {}, scope);
     }
   );
 }
@@ -883,9 +1107,15 @@ if (courseMatchesList) {
 
 if (homeworkList) {
   homeworkList.addEventListener("click", (event) => {
-    const button = event.target?.closest?.(".save-task-btn");
-    if (button) {
-      saveHomeworkCandidate(button.dataset.candidateIndex).catch(() => {
+    const detailButton = event.target?.closest?.(".check-detail-btn");
+    if (detailButton) {
+      inspectAssignmentDetail(detailButton.dataset.candidateIndex);
+      return;
+    }
+
+    const saveButton = event.target?.closest?.(".save-task-btn");
+    if (saveButton) {
+      saveHomeworkCandidate(saveButton.dataset.candidateIndex).catch(() => {
         setSavedTasksStatus("Could not save this possible task.", "error");
       });
     }
@@ -899,14 +1129,27 @@ if (askAiBtn) {
 if (filesList) {
   filesList.addEventListener("change", (event) => {
     if (event.target?.classList?.contains("file-select-input")) {
-      updateDownloadButtonState();
+      updateDownloadButtonState("page");
       setDownloadStatus("", "");
     }
   });
 }
 
 if (downloadSelectedBtn) {
-  downloadSelectedBtn.addEventListener("click", downloadSelectedFiles);
+  downloadSelectedBtn.addEventListener("click", () => downloadSelectedFiles("page"));
+}
+
+if (assignmentDetailFiles) {
+  assignmentDetailFiles.addEventListener("change", (event) => {
+    if (event.target?.classList?.contains("file-select-input")) {
+      updateDownloadButtonState("detail");
+      setAssignmentDetailDownloadStatus("", "");
+    }
+  });
+}
+
+if (downloadDetailSelectedBtn) {
+  downloadDetailSelectedBtn.addEventListener("click", () => downloadSelectedFiles("detail"));
 }
 
 if (savedTasksList) {

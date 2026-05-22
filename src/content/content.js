@@ -44,6 +44,13 @@ const JIMA_TASK_KEYWORD_PATTERN = /(assignment|homework|task|quiz|submission|sub
 const JIMA_DEADLINE_CONTEXT_PATTERN = /(due|deadline|submission|submit|available until|until|\u05de\u05d5\u05e2\u05d3|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05e2\u05d3|\u05ea\u05d0\u05e8\u05d9\u05da|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df)/i;
 const JIMA_DATE_PATTERN = /\b(?:\d{1,2}[/.]\d{1,2}[/.]\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4}|\d{4}-\d{1,2}-\d{1,2})\b/g;
 const JIMA_MOODLE_ACTIVITY_PATTERN = /\/mod\/(assign|quiz|workshop|lesson|forum|choice|feedback|resource|folder)\/view\.php/i;
+const JIMA_ASSIGNMENT_DETAIL_TEXT_LIMIT = 6000;
+const JIMA_ASSIGNMENT_INSTRUCTIONS_LIMIT = 1400;
+const JIMA_STATUS_SNIPPET_LIMIT = 320;
+const JIMA_NOT_SUBMITTED_PATTERN = /(not submitted|no submission|nothing has been submitted|no attempt|submission status\s+not submitted|\u05dc\u05d0 \u05d4\u05d5\u05d2\u05e9|\u05d8\u05e8\u05dd \u05d4\u05d5\u05d2\u05e9|\u05dc\u05dc\u05d0 \u05d4\u05d2\u05e9\u05d4)/i;
+const JIMA_SUBMITTED_PATTERN = /(submitted for grading|\bsubmitted\b|submission status\s+submitted|\u05d4\u05d5\u05d2\u05e9|\u05e0\u05e9\u05dc\u05d7 \u05dc\u05d1\u05d3\u05d9\u05e7\u05d4)/i;
+const JIMA_DRAFT_PATTERN = /(\bdraft\b|draft submission|\u05d8\u05d9\u05d5\u05d8\u05d4)/i;
+const JIMA_STATUS_CONTEXT_PATTERN = /(submission status|grading status|last modified|due date|time remaining|status|\u05de\u05e6\u05d1 \u05d4\u05d2\u05e9\u05d4|\u05de\u05e6\u05d1|\u05e6\u05d9\u05d5\u05df|\u05e0\u05d1\u05d3\u05e7|\u05d6\u05de\u05df \u05e9\u05e0\u05d5\u05ea\u05e8|\u05de\u05d5\u05e2\u05d3 \u05d4\u05d2\u05e9\u05d4|\u05ea\u05d0\u05e8\u05d9\u05da \u05d4\u05d2\u05e9\u05d4)/i;
 
 function compactJimaText(value) {
   return (value || "").replace(/\s+/g, " ").trim();
@@ -236,6 +243,82 @@ function detectJimaCandidates(pageContext) {
   };
 }
 
+function getJimaStatusEvidence(text, pattern) {
+  const match = text.match(pattern);
+  if (!match) return "";
+
+  return getJimaContextWindow(
+    text,
+    match.index || 0,
+    match[0].length,
+    JIMA_STATUS_SNIPPET_LIMIT
+  );
+}
+
+function detectJimaSubmissionStatus(text) {
+  const compactText = compactJimaText(text);
+  const notSubmittedEvidence = getJimaStatusEvidence(compactText, JIMA_NOT_SUBMITTED_PATTERN);
+  if (notSubmittedEvidence) {
+    return {
+      value: "not_submitted",
+      label: "Not submitted",
+      evidence: notSubmittedEvidence,
+      confidence: JIMA_STATUS_CONTEXT_PATTERN.test(notSubmittedEvidence) ? "High" : "Medium",
+      uncertainty: JIMA_STATUS_CONTEXT_PATTERN.test(notSubmittedEvidence)
+        ? ""
+        : "Submission wording was visible, but not clearly inside a Moodle status block."
+    };
+  }
+
+  const draftEvidence = getJimaStatusEvidence(compactText, JIMA_DRAFT_PATTERN);
+  if (draftEvidence) {
+    return {
+      value: "draft",
+      label: "Draft",
+      evidence: draftEvidence,
+      confidence: JIMA_STATUS_CONTEXT_PATTERN.test(draftEvidence) ? "High" : "Medium",
+      uncertainty: "Draft status can still require opening Moodle to confirm final submission."
+    };
+  }
+
+  const submittedEvidence = getJimaStatusEvidence(compactText, JIMA_SUBMITTED_PATTERN);
+  if (submittedEvidence) {
+    return {
+      value: "submitted",
+      label: "Submitted",
+      evidence: submittedEvidence,
+      confidence: JIMA_STATUS_CONTEXT_PATTERN.test(submittedEvidence) ? "High" : "Medium",
+      uncertainty: JIMA_STATUS_CONTEXT_PATTERN.test(submittedEvidence)
+        ? ""
+        : "Submission wording was visible, but not clearly inside a Moodle status block."
+    };
+  }
+
+  return {
+    value: "unknown",
+    label: "Unknown",
+    evidence: "",
+    confidence: "Low",
+    uncertainty: "I cannot confirm submission status from the visible text on this detail page."
+  };
+}
+
+function getJimaInstructionPreview(text) {
+  const compactText = compactJimaText(text);
+  const instructionPattern = /(description|instructions?|submission instructions?|assignment|\u05d4\u05e0\u05d7\u05d9\u05d5\u05ea|\u05d4\u05d5\u05e8\u05d0\u05d5\u05ea|\u05ea\u05d9\u05d0\u05d5\u05e8|\u05de\u05d8\u05dc\u05d4)/i;
+  const match = compactText.match(instructionPattern);
+  if (match) {
+    return getJimaContextWindow(
+      compactText,
+      match.index || 0,
+      match[0].length,
+      JIMA_ASSIGNMENT_INSTRUCTIONS_LIMIT
+    );
+  }
+
+  return capJimaText(compactText, JIMA_ASSIGNMENT_INSTRUCTIONS_LIMIT);
+}
+
 function isJimaVisibleElement(element) {
   if (!element || !(element instanceof Element)) return false;
   if (element.closest("[hidden], [aria-hidden='true']")) return false;
@@ -374,14 +457,68 @@ function extractJimaMoodleContext() {
   };
 }
 
+function extractJimaAssignmentDetail() {
+  if (location.hostname !== "moodle.bgu.ac.il") {
+    return {
+      ok: false,
+      error: "Open a BGU Moodle assignment page first, then ask Jima to inspect it."
+    };
+  }
+
+  const headings = getJimaHeadings();
+  const links = getJimaLinks();
+  const fileCandidates = detectJimaFileCandidates(links);
+  const primaryHeading = headings.find((heading) => heading.level === "h1") || headings[0];
+  const visibleText = getJimaVisibleTextPreview();
+  const textPreview = capJimaText(visibleText, JIMA_ASSIGNMENT_DETAIL_TEXT_LIMIT);
+
+  if (!textPreview) {
+    return {
+      ok: false,
+      error: "Jima could not find visible assignment detail text on this page."
+    };
+  }
+
+  const detailContext = {
+    pageTitle: primaryHeading?.text || document.title,
+    currentUrl: location.href,
+    documentTitle: document.title,
+    visibleTextPreview: textPreview,
+    selectedText: getJimaSelectedText(),
+    headings,
+    links,
+    fileLinks: links
+      .filter((link) => JIMA_FILE_URL_PATTERN.test(`${link.text} ${link.url}`))
+      .slice(0, JIMA_CONTEXT_LIMITS.fileLinks)
+  };
+
+  return {
+    ok: true,
+    assignmentDetail: {
+      title: detailContext.pageTitle,
+      url: detailContext.currentUrl,
+      status: detectJimaSubmissionStatus(textPreview),
+      dueDates: detectJimaDeadlineCandidates(detailContext),
+      files: fileCandidates,
+      instructionsPreview: getJimaInstructionPreview(textPreview),
+      textPreview,
+      headings
+    }
+  };
+}
+
 if (chrome.runtime?.onMessage) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type !== "JIMA_GET_MOODLE_CONTEXT") {
+    if (message?.type !== "JIMA_GET_MOODLE_CONTEXT" && message?.type !== "JIMA_INSPECT_ASSIGNMENT_DETAIL") {
       return false;
     }
 
     try {
-      sendResponse(extractJimaMoodleContext());
+      sendResponse(
+        message.type === "JIMA_INSPECT_ASSIGNMENT_DETAIL"
+          ? extractJimaAssignmentDetail()
+          : extractJimaMoodleContext()
+      );
     } catch (error) {
       sendResponse({
         ok: false,
