@@ -1,12 +1,22 @@
 import "dotenv/config";
 import express from "express";
-import { analyzeJimaContext } from "./openaiClient.js";
+import multer from "multer";
+import { extractFileText } from "./fileTextExtractor.js";
+import { analyzeJimaContext, analyzeJimaFileText } from "./openaiClient.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_VISIBLE_TEXT_LENGTH = 8000;
 const MAX_ARRAY_ITEMS = 100;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_FILE_BYTES,
+    files: 1
+  }
+});
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -92,6 +102,70 @@ app.post("/api/jima/analyze-context", async (req, res) => {
       error: "Jima analysis failed. Please try again later."
     });
   }
+});
+
+app.post("/api/jima/analyze-file", (req, res) => {
+  upload.single("file")(req, res, async (uploadError) => {
+    if (uploadError) {
+      if (uploadError instanceof multer.MulterError && uploadError.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({
+          ok: false,
+          error: "Selected file is too large. Maximum supported size is 10MB."
+        });
+      }
+
+      return res.status(400).json({
+        ok: false,
+        error: "Jima could not read the uploaded file request."
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        ok: false,
+        error: "Choose a PDF, DOCX, or TXT file before asking Jima to analyze it."
+      });
+    }
+
+    try {
+      const extracted = await extractFileText(req.file);
+      const analysis = await analyzeJimaFileText({
+        ...extracted,
+        userQuestion: typeof req.body?.userQuestion === "string" ? req.body.userQuestion : ""
+      });
+
+      return res.json({
+        ok: true,
+        analysis,
+        extraction: {
+          fileName: extracted.fileName,
+          fileType: extracted.fileType,
+          extractedCharacters: extracted.extractedCharacters,
+          warnings: extracted.warnings
+        }
+      });
+    } catch (error) {
+      if (error?.code === "MISSING_OPENAI_API_KEY") {
+        return res.status(500).json({
+          ok: false,
+          error: "Backend configuration error: OPENAI_API_KEY is not set."
+        });
+      }
+
+      if (error?.statusCode) {
+        return res.status(error.statusCode).json({
+          ok: false,
+          error: error.message || "Jima could not extract text from this file."
+        });
+      }
+
+      console.error("Jima file analysis failed:", error?.message || error);
+      return res.status(502).json({
+        ok: false,
+        error: "Jima file analysis failed. Please try again later."
+      });
+    }
+  });
 });
 
 app.use((error, _req, res, next) => {

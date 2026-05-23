@@ -483,6 +483,68 @@ h1 {
   gap: 10px;
 }
 
+.file-analysis-details {
+  border: 1px solid rgba(249, 115, 22, 0.22);
+  border-radius: 14px;
+  background: #fff7ed;
+}
+
+.file-analysis-details summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.file-analysis-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.file-analysis-note {
+  color: #9a3412;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.file-analysis-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#fileAnalysisInput,
+#fileAnalysisQuestion {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: #ffffff;
+  outline: none;
+}
+
+#fileAnalysisQuestion {
+  min-height: 58px;
+  resize: vertical;
+}
+
+#fileAnalysisInput:focus,
+#fileAnalysisQuestion:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+}
+
 .course-match-list {
   display: flex;
   flex-direction: column;

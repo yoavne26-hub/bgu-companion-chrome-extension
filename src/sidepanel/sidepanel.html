@@ -39,6 +39,7 @@
           <button class="suggested-chip" type="button" data-chat-action="currentPage">Current page</button>
           <button class="suggested-chip" type="button" data-chat-action="savedCourse">Saved course</button>
           <button class="suggested-chip" type="button" data-chat-action="files">Files</button>
+          <button class="suggested-chip" type="button" data-chat-action="analyzeFile">Analyze file</button>
           <button class="suggested-chip" type="button" data-chat-action="homework">Homework</button>
           <button class="suggested-chip" type="button" data-chat-action="ai">Analyze with AI</button>
         </div>
@@ -73,6 +74,29 @@
               <div id="followupDownloadStatus" class="status-message compact" role="status" aria-live="polite"></div>
             </div>
           </div>
+
+          <details id="fileAnalysisDetails" class="file-analysis-details">
+            <summary>Analyze selected file</summary>
+            <div class="file-analysis-body">
+              <p class="file-analysis-note">
+                File contents are sent to your local Jima backend only after you choose a file and click analyze.
+              </p>
+              <label class="file-analysis-picker">
+                <span>Choose PDF, DOCX, or TXT</span>
+                <input id="fileAnalysisInput" type="file" accept=".txt,.pdf,.docx" />
+              </label>
+              <textarea
+                id="fileAnalysisQuestion"
+                rows="2"
+                placeholder="Optional: ask what you want Jima to explain from this file..."
+                aria-label="File analysis question"
+              ></textarea>
+              <button id="analyzeSelectedFileBtn" class="secondary-action" type="button" disabled>
+                Analyze selected file
+              </button>
+              <div id="fileAnalysisStatus" class="status-message compact" role="status" aria-live="polite"></div>
+            </div>
+          </details>
         </div>
       </section>
 

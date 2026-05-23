@@ -3,6 +3,7 @@ import { JIMA_SYSTEM_PROMPT } from "./jimaSystemPrompt.js";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_OUTPUT_TOKENS = 800;
+const MAX_FILE_OUTPUT_TOKENS = 1000;
 
 const jimaAnalysisSchema = {
   type: "object",
@@ -65,6 +66,51 @@ const jimaAnalysisSchema = {
   required: ["summary", "assignments", "dates", "files", "nextActions", "uncertainties"]
 };
 
+const jimaFileAnalysisSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    summary: { type: "string" },
+    keyPoints: {
+      type: "array",
+      items: { type: "string" }
+    },
+    possibleHomework: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          evidence: { type: "string" },
+          confidence: { type: "string", enum: ["high", "medium", "low"] },
+          uncertainty: { type: "string" }
+        },
+        required: ["title", "evidence", "confidence", "uncertainty"]
+      }
+    },
+    actionItems: {
+      type: "array",
+      items: { type: "string" }
+    },
+    uncertainties: {
+      type: "array",
+      items: { type: "string" }
+    },
+    source: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        fileName: { type: "string" },
+        fileType: { type: "string" },
+        extractedCharacters: { type: "number" }
+      },
+      required: ["fileName", "fileType", "extractedCharacters"]
+    }
+  },
+  required: ["summary", "keyPoints", "possibleHomework", "actionItems", "uncertainties", "source"]
+};
+
 function getOpenAIClient() {
   if (!process.env.OPENAI_API_KEY) {
     const error = new Error("OPENAI_API_KEY is not configured.");
@@ -114,6 +160,52 @@ export async function analyzeJimaContext(payload) {
         name: "jima_analysis",
         strict: true,
         schema: jimaAnalysisSchema
+      }
+    }
+  });
+
+  return parseStructuredOutput(response);
+}
+
+export async function analyzeJimaFileText(payload) {
+  const openai = getOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+
+  const response = await openai.responses.create({
+    model,
+    temperature: 0.2,
+    max_output_tokens: MAX_FILE_OUTPUT_TOKENS,
+    input: [
+      {
+        role: "system",
+        content: `${JIMA_SYSTEM_PROMPT}
+
+File-analysis mode:
+- You may summarize file contents only because extracted file text is provided in this request.
+- Base every claim only on extractedFileText.
+- Say the answer is based on extracted file text.
+- Do not claim to see images, diagrams, handwriting, scanned pages, charts, or formatting unless the extracted text explicitly describes them.
+- If extraction looks incomplete or short, make the limitation clear.
+- If the student asks about homework, identify only homework/action evidence present in extractedFileText.`
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          fileName: payload.fileName,
+          fileType: payload.fileType,
+          extractedCharacters: payload.extractedCharacters,
+          userQuestion: payload.userQuestion || "Summarize this academic file.",
+          extractionWarnings: payload.warnings || [],
+          extractedFileText: payload.extractedText || ""
+        })
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "jima_file_analysis",
+        strict: true,
+        schema: jimaFileAnalysisSchema
       }
     }
   });
