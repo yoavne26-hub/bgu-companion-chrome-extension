@@ -79,8 +79,10 @@ Jima Chat V2 keeps the first side-panel experience as one chat/search surface wi
 
 - Local mode uses only extension-side extraction, deterministic routing, saved-course lookup, assignment detail inspection, saved tasks, and explicit selected-file downloads.
 - AI mode still requires confirmation before the extension sends the latest minimal extracted Moodle context and detections to this backend.
+- AI mode does not override local tools. File download/show/open requests, current-page scans, saved-course checks, and assignment deadline follow-ups stay local first.
 - The extension can suggest tools/actions in chat, but sensitive actions such as AI requests and downloads still require a separate user click.
 - File links can be listed, opened by the browser, or downloaded after confirmation. File contents are not read or uploaded in this phase.
+- Precise file references such as "lecture 5", "הרצאה 5", or "5 הרצאה" are matched locally against visible file/resource titles. Jima remembers the last referenced file during the side-panel session for follow-ups like "download it" or "can you read it".
 - File-content analysis is deferred; do not claim that Jima read a PDF, DOCX, or other file unless a future explicit file-analysis endpoint extracts text and supplies it to the model.
 
 ## Endpoints
@@ -142,5 +144,6 @@ If `OPENAI_API_KEY` is missing, the endpoint returns a clear configuration error
 - Saved assignment detail evidence stays local in browser storage; detail file entries are metadata only.
 - Local answer summaries are generated in the extension and do not call this backend or OpenAI.
 - Chat-first routing is local and deterministic; file contents are still not read, parsed, uploaded, or sent here in this phase.
+- Conversational file state is session-only in the side panel and is not persisted or sent to the backend.
 - Assignment detail deadline extraction is local and based only on visible Moodle detail-page evidence.
 - CORS is not enabled because the extension routes local backend calls through its background service worker with a narrow localhost host permission.

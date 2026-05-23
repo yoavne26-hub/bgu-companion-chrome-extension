@@ -89,6 +89,7 @@ let latestAiAnalysis = null;
 let latestCheckedCourseName = "";
 let chatMode = "local";
 let jimaToolRegistry = null;
+let pendingAiConfirmation = false;
 const jimaChatHistory = [];
 
 const jimaSessionMemory = {
@@ -98,6 +99,11 @@ const jimaSessionMemory = {
   latestInspectedAssignmentDetail: null,
   latestAssignmentFiles: [],
   latestActiveAssignmentTitle: "",
+  lastMatchedFiles: [],
+  lastReferencedFile: null,
+  lastFileIntent: "",
+  lastFileActionOffered: "",
+  lastFileSourcePage: "",
   latestAiResponse: null
 };
 
@@ -110,6 +116,7 @@ const JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN = /(enter|open|check|inspect).*\b(
 const JIMA_STRICT_TASK_PATTERN = /(homework|assignment|task|submit|submission|due|deadline|exercise|project|quiz|lab|\/mod\/(?:assign|quiz|workshop)\/view\.php|\u05de\u05d8\u05dc\u05d4|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05de\u05d5\u05e2\u05d3\s+\u05d4\u05d2\u05e9\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df|\u05e4\u05e8\u05d5\u05d9\u05d9\u05e7\u05d8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e2\u05d1\u05d3\u05d4)/i;
 const JIMA_RESOURCE_ONLY_PATTERN = /(lecture|resource|file|folder|slides?|presentation|\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5|\u05d7\u05d5\u05de\u05e8|\u05de\u05e6\u05d2\u05ea)/i;
 const JIMA_OPEN_FILE_PATTERN = /\b(open|view|show|check)\b.*\b(file|lecture|resource|pdf|slides?)\b|\b(what is|what's)\b.*\b(about|lecture|file|resource)\b|\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e4\u05ea\u05d7.*\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e6\u05d2.*\u05e7\u05d5\u05d1\u05e5/i;
+const JIMA_FILE_REFERENCE_PATTERN = /\b(?:lecture|lec|lesson)\s*(?:number\s*)?\d+\b|\b\d+\s*(?:lecture|lec|lesson)\b|\u05d4\u05e8\u05e6\u05d0\u05d4\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4\s*\d+|\d+\s*\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05e7\u05d5\u05d1\u05e5/i;
 
 function setStatus(text, type = "") {
   if (!statusMessage) return;
@@ -439,9 +446,44 @@ function getLatestFileCandidatesForChat() {
   };
 }
 
+function normalizeFileLookupText(value) {
+  return normalizeChatText(value)
+    .replace(/\blec\b/g, "lecture")
+    .replace(/\blesson\b/g, "lecture")
+    .replace(/\bnumber\b/g, "")
+    .replace(/\bslides?\b/g, "presentation")
+    .replace(/\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4/g, "\u05d4\u05e8\u05e6\u05d0\u05d4")
+    .replace(/\u05de\u05e1\u05e4\u05e8/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getFileSearchHints(query) {
+  const normalized = normalizeFileLookupText(query);
+  const numbers = normalized.match(/\d+/g) || [];
+  const wantsLecture = /\b(lecture|presentation)\b|\u05d4\u05e8\u05e6\u05d0\u05d4/.test(normalized);
+  const wantsFile = /\b(file|pdf|resource|presentation)\b|\u05e7\u05d5\u05d1\u05e5|\u05d7\u05d5\u05de\u05e8|\u05de\u05e6\u05d2\u05ea/.test(normalized);
+  const isPronounReference = /\b(it|this|that|same one)\b|\u05d6\u05d4|\u05d6\u05d0\u05ea|\u05d0\u05d5\u05ea\u05d5|\u05d0\u05d5\u05ea\u05d4|\u05d4\u05e7\u05d5\u05d1\u05e5/.test(normalized);
+
+  return {
+    normalized,
+    numbers,
+    wantsLecture,
+    wantsFile,
+    isPronounReference,
+    hasSpecificTarget: wantsLecture || wantsFile || numbers.length > 0
+  };
+}
+
 function getSearchTokens(query) {
   const ignored = new Set([
     "download",
+    "get",
+    "read",
+    "summarize",
+    "summarise",
+    "analyze",
+    "analyse",
     "open",
     "show",
     "check",
@@ -450,34 +492,172 @@ function getSearchTokens(query) {
     "file",
     "files",
     "resource",
+    "resources",
     "lecture",
+    "lesson",
     "pdf",
     "the",
     "this",
     "is",
+    "it",
+    "that",
     "can",
     "you",
-    "me"
+    "me",
+    "\u05d4\u05d5\u05e8\u05d3",
+    "\u05d4\u05d5\u05e8\u05d9\u05d3\u05d9",
+    "\u05ea\u05d5\u05e8\u05d9\u05d3",
+    "\u05ea\u05d5\u05e8\u05d9\u05d3\u05d9",
+    "\u05dc\u05d4\u05d5\u05e8\u05d9\u05d3",
+    "\u05ea\u05e7\u05e8\u05d0",
+    "\u05ea\u05e7\u05e8\u05d0\u05d9",
+    "\u05ea\u05e1\u05db\u05dd",
+    "\u05ea\u05e1\u05db\u05de\u05d9",
+    "\u05de\u05d4",
+    "\u05e2\u05dc",
+    "\u05d4\u05e8\u05e6\u05d0\u05d4",
+    "\u05e7\u05d5\u05d1\u05e5",
+    "\u05d4\u05e7\u05d5\u05d1\u05e5"
   ]);
-  return normalizeChatText(query)
+  return normalizeFileLookupText(query)
     .split(" ")
     .map((token) => token.trim())
     .filter((token) => token.length > 1 && !ignored.has(token));
 }
 
-function filterFilesForQuery(files, query) {
+function getFileDisplayName(file) {
+  return String(file?.name || file?.title || file?.text || "Moodle file").trim();
+}
+
+function getPrimaryFileMatchText(file) {
+  return [
+    file?.name,
+    file?.title,
+    file?.text,
+    file?.fileType
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getFallbackFileMatchText(file) {
+  return file?.name || file?.title || file?.text
+    ? ""
+    : String(file?.evidence || "");
+}
+
+function hasExactNumberToken(text, number) {
+  return new RegExp(`(^|\\D)${number}(\\D|$)`).test(text);
+}
+
+function hasResourceWord(text) {
+  return /\b(lecture|presentation|resource|file|pdf)\b|\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5|\u05d7\u05d5\u05de\u05e8|\u05de\u05e6\u05d2\u05ea/.test(text);
+}
+
+function hasLectureWord(text) {
+  return /\b(lecture|presentation)\b|\u05d4\u05e8\u05e6\u05d0\u05d4/.test(text);
+}
+
+function hasNumberNearResource(text, number) {
+  const escapedNumber = number.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const lectureWord = "(?:lecture|presentation|\\u05d4\\u05e8\\u05e6\\u05d0\\u05d4)";
+  return new RegExp(`${lectureWord}.{0,24}(^|\\D)${escapedNumber}(\\D|$)|(^|\\D)${escapedNumber}(\\D|$).{0,24}${lectureWord}`).test(text);
+}
+
+function scoreFileForQuery(file, query) {
+  const hints = getFileSearchHints(query);
   const tokens = getSearchTokens(query);
-  if (tokens.length === 0) return files;
+  const primaryText = normalizeFileLookupText(getPrimaryFileMatchText(file));
+  const fallbackText = normalizeFileLookupText(getFallbackFileMatchText(file));
+  const text = primaryText || fallbackText;
+  let score = 0;
 
-  const numberedTokens = tokens.filter((token) => /\d/.test(token));
-  const matches = files.filter((file) => {
-    const text = normalizeChatText(getCandidateEvidenceText(file));
-    const hasNumberMatch = numberedTokens.length === 0 || numberedTokens.some((token) => text.includes(token));
-    const hasTextMatch = tokens.some((token) => text.includes(token));
-    return hasNumberMatch && hasTextMatch;
-  });
+  if (!hints.hasSpecificTarget && tokens.length === 0) return 1;
+  if (!text) return 0;
 
-  return matches.length > 0 ? matches : files;
+  if (hints.numbers.length > 0 && !hints.numbers.some((number) => hasExactNumberToken(primaryText, number))) {
+    return 0;
+  }
+
+  if (hints.normalized && primaryText === hints.normalized) score += 20;
+  if (hints.normalized && primaryText.includes(hints.normalized)) score += 12;
+
+  for (const number of hints.numbers) {
+    if (hasExactNumberToken(primaryText, number)) score += 8;
+    if (hasNumberNearResource(primaryText, number)) score += 6;
+  }
+
+  if (hints.wantsLecture && hasLectureWord(primaryText)) {
+    score += 6;
+  }
+
+  if (hints.wantsFile && hasResourceWord(primaryText)) {
+    score += 3;
+  }
+
+  for (const token of tokens) {
+    if (/\d+/.test(token)) continue;
+    if (primaryText.includes(token)) score += 2;
+    else if (!primaryText && fallbackText.includes(token)) score += 1;
+  }
+
+  return score;
+}
+
+function filterFilesForQuery(files, query, options = {}) {
+  const tokens = getSearchTokens(query);
+  const hints = getFileSearchHints(query);
+  if (hints.isPronounReference && jimaSessionMemory.lastReferencedFile?.url) {
+    return [jimaSessionMemory.lastReferencedFile];
+  }
+
+  if (hints.wantsFile && !hints.wantsLecture && hints.numbers.length === 0 && tokens.length === 0) {
+    return files;
+  }
+
+  if (!hints.hasSpecificTarget && tokens.length === 0) {
+    return options.fallbackToAll === false ? [] : files;
+  }
+
+  const scoredMatches = files
+    .map((file) => ({ file, score: scoreFileForQuery(file, query) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+  const bestScore = scoredMatches[0]?.score || 0;
+  const threshold = hints.numbers.length > 0 ? 8 : hints.hasSpecificTarget ? 4 : 1;
+  const matches = scoredMatches
+    .filter((entry) => entry.score >= Math.max(threshold, bestScore > 0 ? bestScore - 2 : threshold))
+    .map((entry) => entry.file);
+
+  if (matches.length > 0) return matches;
+  return options.fallbackToAll === false ? [] : files;
+}
+
+function rememberFileReference(files, intent, sourceLabel) {
+  const safeFiles = Array.isArray(files) ? files.filter((file) => file?.url) : [];
+  jimaSessionMemory.lastMatchedFiles = safeFiles.slice(0, 10);
+  jimaSessionMemory.lastReferencedFile = safeFiles.length === 1 ? safeFiles[0] : jimaSessionMemory.lastReferencedFile;
+  jimaSessionMemory.lastFileIntent = intent || "";
+  jimaSessionMemory.lastFileActionOffered = intent || "";
+  jimaSessionMemory.lastFileSourcePage = sourceLabel || "";
+}
+
+function getTitleOnlyHint(file) {
+  const name = getFileDisplayName(file);
+  const parts = name.split(/\s[-–—:]\s/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    return `From the title only, it appears related to ${parts.slice(1).join(" - ")}.`;
+  }
+  return `From the title only, I can identify it as "${name}".`;
+}
+
+function getRequestedFileLabel(query) {
+  const hints = getFileSearchHints(query);
+  const number = hints.numbers[0] || "";
+  if (!number) return "";
+  if (hints.wantsLecture) return `lecture ${number}`;
+  if (hints.wantsFile) return `file ${number}`;
+  return `item ${number}`;
 }
 
 function openEvidenceDetails() {
@@ -757,6 +937,7 @@ function openFileCandidate(file) {
     return;
   }
 
+  rememberFileReference([file], "open", jimaSessionMemory.lastFileSourcePage || "the latest file result");
   chrome.tabs.create({ url: file.url, active: true }, () => {
     if (chrome.runtime.lastError) {
       addChatMessage("assistant", chrome.runtime.lastError.message || "I could not open this file link.", [], "error");
@@ -770,6 +951,25 @@ function openFileCandidate(file) {
       "result"
     );
   });
+}
+
+function downloadSingleFollowupFile(index = 0) {
+  const file = latestFollowupFiles[Number(index)] || jimaSessionMemory.lastReferencedFile;
+  if (!file?.url) {
+    addChatMessage("assistant", "I am not sure which file to download. Ask for a specific file or show files first.", [], "error");
+    return;
+  }
+
+  rememberFileReference([file], "download", jimaSessionMemory.lastFileSourcePage || "the latest file result");
+  renderFollowupFiles(
+    {
+      source: "memory",
+      label: jimaSessionMemory.lastFileSourcePage || "the last referenced file",
+      files: [file]
+    },
+    "download"
+  );
+  downloadSelectedFiles("followup");
 }
 
 function renderCourseMatches(matches, query) {
@@ -1191,6 +1391,12 @@ function showAiConfirmationInChat() {
     return;
   }
 
+  if (pendingAiConfirmation) {
+    addChatMessage("assistant", "AI confirmation is already waiting above. Click Continue with AI only if you want to send the extracted context to your local backend.");
+    return;
+  }
+
+  pendingAiConfirmation = true;
   addChatMessage(
     "assistant",
     "AI analysis will send the latest extracted Moodle context and local evidence to your local Jima backend. File contents are not included unless explicit file analysis is added later. No API key is stored in the extension. Continue?",
@@ -1204,11 +1410,22 @@ function showAiConfirmationInChat() {
 
 function showFilesFromChat(query, mode = "show") {
   const latestSource = getLatestFileCandidatesForChat();
-  const files = filterFilesForQuery((latestSource.files || []).filter((file) => file?.url), query);
+  const availableFiles = (latestSource.files || []).filter((file) => file?.url);
+  const files = filterFilesForQuery(availableFiles, query, { fallbackToAll: false });
 
-  if (files.length === 0) {
+  if (availableFiles.length === 0) {
     clearFollowupResults();
     addChatMessage("assistant", "I do not have file candidates from the latest checked page yet. Analyze a Moodle page or check assignment details first.");
+    return;
+  }
+
+  if (files.length === 0) {
+    renderFollowupFiles({ ...latestSource, files: availableFiles }, "show");
+    addChatMessage(
+      "assistant",
+      `I found files from ${latestSource.label}, but I could not confidently match your requested file. Choose one from the files list. I have not read file contents.`,
+      [{ label: "Show all files", dataset: { chatAction: "showAllFiles" } }]
+    );
     return;
   }
 
@@ -1217,27 +1434,95 @@ function showFilesFromChat(query, mode = "show") {
     files
   };
 
+  rememberFileReference(files, mode, fileSource.label);
   renderFollowupFiles(fileSource, mode);
   if (mode === "download") {
+    const requestedLabel = getRequestedFileLabel(query);
     addChatMessage(
       "assistant",
       files.length === 1
-        ? `I found one likely file: ${files[0].name || "Moodle file"}. Confirm before downloading. I have not read the file contents.`
-        : `I found ${files.length} matching file candidates. Select what to download. I have not read the file contents.`
+        ? `I found ${requestedLabel ? `${requestedLabel}: ` : ""}"${getFileDisplayName(files[0])}". I can download it after you confirm. I have not read the file contents.`
+        : `I found ${files.length} matching file candidates. Select what to download. I have not read the file contents.`,
+      [
+        files.length === 1 ? { label: "Download", dataset: { chatAction: "downloadSingle", fileIndex: 0 } } : null,
+        { label: "Cancel", dataset: { chatAction: "cancel" } }
+      ]
     );
     return;
   }
 
   addChatMessage(
     "assistant",
-    `I found ${describeFileMix(files)} from ${fileSource.label}. I have not read the file contents. I can open/download the file after confirmation, or use AI only on the visible page context. Explicit file-content analysis is deferred to a later safe step.`,
+    files.length === 1
+      ? `I found "${getFileDisplayName(files[0])}" from ${fileSource.label}. I have not read the file contents. I can open it or download it after confirmation.`
+      : `I found ${describeFileMix(files)} from ${fileSource.label}. I have not read the file contents. Choose one to open or download.`,
     [
       files.length === 1
         ? { label: "Open file link", dataset: { chatAction: "openFile", fileIndex: 0 } }
         : null,
-      { label: "Prepare download", dataset: { chatAction: "downloadFiles", query } },
-      { label: "Ask AI about visible page context", dataset: { chatAction: "ai" } }
+      files.length === 1
+        ? { label: "Download", dataset: { chatAction: "downloadSingle", fileIndex: 0 } }
+        : { label: "Prepare download", dataset: { chatAction: "downloadFiles", query } },
+      { label: "Analyze selected file", dataset: { chatAction: "analyzeFileUnavailable" } }
     ]
+  );
+}
+
+function showFileReadLimitation(query) {
+  const latestSource = getLatestFileCandidatesForChat();
+  const fallbackFiles = latestFollowupFiles.length > 0 ? latestFollowupFiles : [];
+  const sourceFiles = (latestSource.files || []).filter((file) => file?.url);
+  const hints = getFileSearchHints(query);
+  const memoryFile = hints.isPronounReference && jimaSessionMemory.lastReferencedFile?.url
+    ? [jimaSessionMemory.lastReferencedFile]
+    : [];
+  const availableFiles = memoryFile.length > 0 ? memoryFile : fallbackFiles.length > 0 ? fallbackFiles : sourceFiles;
+
+  if (availableFiles.length === 0) {
+    addChatMessage(
+      "assistant",
+      "I am not sure which file you mean. Ask me for a specific file like \"lecture 5\" or ask me to show files first. File-content analysis is not implemented yet."
+    );
+    return;
+  }
+
+  const matches = filterFilesForQuery(availableFiles, query, { fallbackToAll: false });
+  const files = matches.length > 0 ? matches : memoryFile.length > 0 ? memoryFile : [];
+  if (files.length === 0) {
+    renderFollowupFiles({ ...latestSource, files: availableFiles }, "show");
+    addChatMessage(
+      "assistant",
+      "I found files, but I could not confidently match the one you asked about. I have not read file contents. Choose one from the files list, or analyze the page again if the file is missing."
+    );
+    return;
+  }
+
+  const fileSource = {
+    ...latestSource,
+    label: memoryFile.length > 0 ? "the last referenced file" : fallbackFiles.length > 0 ? "the latest file result" : latestSource.label,
+    files
+  };
+  rememberFileReference(files, "read", fileSource.label);
+  renderFollowupFiles(fileSource, "show");
+
+  if (files.length === 1) {
+    const file = files[0];
+    addChatMessage(
+      "assistant",
+      `I found "${getFileDisplayName(file)}". ${getTitleOnlyHint(file)} I have not read the file contents yet. I can open or download it after you confirm. File-content analysis is not implemented yet.`,
+      [
+        { label: "Open file link", dataset: { chatAction: "openFile", fileIndex: 0 } },
+        { label: "Download", dataset: { chatAction: "downloadSingle", fileIndex: 0 } },
+        { label: "Analyze selected file", dataset: { chatAction: "analyzeFileUnavailable" } }
+      ]
+    );
+    return;
+  }
+
+  addChatMessage(
+    "assistant",
+    `I found ${files.length} matching file/resource candidates, but I have not read their contents. Choose one to open or download. File-content analysis is not implemented yet.`,
+    [{ label: "Prepare download", dataset: { chatAction: "downloadFiles", query } }]
   );
 }
 
@@ -1301,14 +1586,19 @@ function handleAssignmentDetailFollowup() {
 
 function getChatIntent(query) {
   const text = String(query || "").trim();
+  if (globalThis.JimaChatV2?.classifyIntent) {
+    return globalThis.JimaChatV2.classifyIntent({ query: text, mode: chatMode });
+  }
+
   if (!text) return "empty";
-  if (JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN.test(text)) return "assignment_detail";
   if (JIMA_FOLLOWUP_DOWNLOAD_PATTERN.test(text)) return "download_files";
   if (JIMA_OPEN_FILE_PATTERN.test(text) || JIMA_FOLLOWUP_SHOW_FILES_PATTERN.test(text)) return "show_files";
+  if (JIMA_FILE_REFERENCE_PATTERN.test(text)) return "file_reference";
+  if (JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN.test(text)) return "assignment_detail";
   if (JIMA_CHAT_ANALYZE_PATTERN.test(text)) return "analyze_page";
   if (JIMA_CHAT_HOMEWORK_PATTERN.test(text) && /\b(this|current)\b.*\b(course|page)\b/i.test(text)) return "analyze_page";
   if (JIMA_CHAT_HOMEWORK_PATTERN.test(text)) return "homework_or_course";
-  if (JIMA_CHAT_AI_PATTERN.test(text) || chatMode === "ai") return "ai";
+  if (JIMA_CHAT_AI_PATTERN.test(text)) return "ai";
   return "unsupported";
 }
 
@@ -1338,7 +1628,17 @@ async function routeChatQuery(query, mirrorUser = true) {
     return;
   }
 
+  if (intent === "read_file") {
+    await runJimaTool("explainFileBoundary", { query: trimmed });
+    return;
+  }
+
   if (intent === "show_files") {
+    await runJimaTool("listLatestFiles", { query: trimmed });
+    return;
+  }
+
+  if (intent === "file_reference") {
     await runJimaTool("listLatestFiles", { query: trimmed });
     return;
   }
@@ -1622,6 +1922,19 @@ function renderContext(pageContext, detections) {
   setAiStatus("", "");
   setStatus("This detection is rule-based and stays local. Use the AI button only if you want to send this extracted context to your local backend.", "success");
   addChatMessage("assistant", answer.summary);
+
+  if (chatMode === "ai" && !pendingAiConfirmation) {
+    pendingAiConfirmation = true;
+    addChatMessage(
+      "assistant",
+      "Local scan is ready. Do you want to send this extracted context to AI?",
+      [
+        { label: "Continue with AI", dataset: { chatAction: "confirmAi" } },
+        { label: "Cancel", dataset: { chatAction: "cancel" } }
+      ],
+      "confirmation"
+    );
+  }
 
   if (latestFileCandidates.length > 0) {
     addChatMessage(
@@ -2024,6 +2337,11 @@ function analyzeCurrentPage() {
     latestInspectedAssignmentDetail: null,
     latestAssignmentFiles: [],
     latestActiveAssignmentTitle: "",
+    lastMatchedFiles: [],
+    lastReferencedFile: null,
+    lastFileIntent: "",
+    lastFileActionOffered: "",
+    lastFileSourcePage: "",
     latestAiResponse: null
   });
   setLoading(true);
@@ -2066,6 +2384,7 @@ function askJimaWithAi(questionOverride = "") {
 
   const userQuestion = String(questionOverride || "").trim() || aiQuestionInput?.value.trim() || DEFAULT_AI_QUESTION;
   const bundle = buildCurrentAiContextBundle(userQuestion);
+  pendingAiConfirmation = false;
   setAiLoading(true);
   aiResults.hidden = true;
   setAiStatus("Sending extracted context to your local Jima backend...", "active");
@@ -2238,6 +2557,11 @@ function initializeJimaToolRegistry() {
       mode: "local",
       run: ({ query }) => showFilesFromChat(query || "", "show")
     },
+    explainFileBoundary: {
+      description: "Explain that Jima can see file links/titles but has not read file contents.",
+      mode: "local",
+      run: ({ query }) => showFileReadLimitation(query || "")
+    },
     prepareDownload: {
       description: "Show matching file candidates and require confirmation before Chrome downloads anything.",
       mode: "local",
@@ -2343,6 +2667,7 @@ if (chatMessages) {
     }
 
     if (action === "cancel") {
+      pendingAiConfirmation = false;
       addChatMessage("assistant", "Canceled. No context was sent and no action was run.");
       return;
     }
@@ -2364,6 +2689,26 @@ if (chatMessages) {
 
     if (action === "downloadFiles") {
       runJimaTool("prepareDownload", { query: button.dataset.query || "" });
+      return;
+    }
+
+    if (action === "downloadSingle") {
+      downloadSingleFollowupFile(button.dataset.fileIndex || 0);
+      return;
+    }
+
+    if (action === "showAllFiles") {
+      runJimaTool("listLatestFiles", { query: "" });
+      return;
+    }
+
+    if (action === "analyzeFileUnavailable") {
+      addChatMessage(
+        "assistant",
+        "File-content analysis is not implemented yet. I can open or download the file, but I will not claim to read it until a future explicit file-analysis step extracts text.",
+        [],
+        "result"
+      );
       return;
     }
 

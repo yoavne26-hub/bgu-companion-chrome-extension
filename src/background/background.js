@@ -31,7 +31,7 @@ function sendTabMessage(tabId, message) {
       if (chrome.runtime.lastError) {
         resolve({
           ok: false,
-          error: "Jima could not reach this page. Refresh the Moodle page and try again."
+          error: "Jima could not reach the active tab. Make sure the active tab is a BGU Moodle page, reload it, then try again."
         });
         return;
       }
