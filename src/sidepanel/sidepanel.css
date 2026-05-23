@@ -120,10 +120,11 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  min-height: 180px;
-  max-height: 360px;
+  min-height: 260px;
+  max-height: 52vh;
   overflow: auto;
   padding: 4px;
+  scroll-behavior: smooth;
 }
 
 .chat-message {
@@ -136,6 +137,20 @@ h1 {
   line-height: 1.5;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.chat-message.result {
+  border-left: 4px solid var(--primary);
+}
+
+.chat-message.confirmation {
+  border-left: 4px solid var(--accent);
+}
+
+.chat-message.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
 }
 
 .chat-message.assistant {
@@ -180,6 +195,52 @@ h1 {
   gap: 8px;
 }
 
+.mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  padding: 8px;
+}
+
+.mode-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: #e2e8f0;
+  padding: 3px;
+}
+
+.mode-option {
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 10px;
+  background: transparent;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mode-option.is-active {
+  background: #ffffff;
+  color: var(--primary-dark);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.09);
+}
+
+.mode-status {
+  min-width: 0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
 .suggested-chip {
   border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 999px;
@@ -205,6 +266,9 @@ h1 {
 #chatInput {
   width: 100%;
   min-width: 0;
+  min-height: 46px;
+  max-height: 120px;
+  resize: vertical;
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 11px 12px;
@@ -1022,4 +1086,29 @@ h1 {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+button:focus-visible,
+a:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(249, 115, 22, 0.32);
+  outline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+  .sidepanel-shell {
+    padding: 14px;
+  }
+
+  .mode-row,
+  .chat-compose {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }

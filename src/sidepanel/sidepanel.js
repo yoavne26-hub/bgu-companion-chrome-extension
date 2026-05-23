@@ -8,6 +8,8 @@ const courseMatchesList = document.getElementById("courseMatchesList");
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 const chatSendBtn = document.getElementById("chatSendBtn");
+const chatModeToggle = document.getElementById("chatModeToggle");
+const chatModeStatus = document.getElementById("chatModeStatus");
 const suggestedActions = document.querySelector(".suggested-actions");
 const evidenceDetails = document.getElementById("evidenceDetails");
 const analyzePageBtn = document.getElementById("analyzePageBtn");
@@ -85,6 +87,9 @@ let latestAssignmentCandidate = null;
 let latestActiveAssignmentTitle = "";
 let latestAiAnalysis = null;
 let latestCheckedCourseName = "";
+let chatMode = "local";
+let jimaToolRegistry = null;
+const jimaChatHistory = [];
 
 const jimaSessionMemory = {
   latestAnalyzedCoursePageContext: null,
@@ -230,16 +235,33 @@ function appendLinkRow(listEl, link) {
   listEl.appendChild(item);
 }
 
-function addChatMessage(role, text, actions = []) {
+function addChatMessage(role, text, actions = [], type = "text") {
   if (!chatMessages || !text) return null;
+  const messageModel = globalThis.JimaChatV2?.createMessage
+    ? globalThis.JimaChatV2.createMessage({
+      role: role === "assistant" ? "jima" : role,
+      type,
+      text,
+      actions
+    })
+    : {
+      id: `legacy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      role: role === "assistant" ? "jima" : role,
+      type,
+      text,
+      createdAt: new Date().toISOString(),
+      actions
+    };
+  jimaChatHistory.push(messageModel);
 
   const message = document.createElement("div");
-  message.className = `chat-message ${role === "user" ? "user" : "assistant"}`;
+  message.className = `chat-message ${role === "user" ? "user" : "assistant"} ${messageModel.type}`;
+  message.dataset.messageId = messageModel.id;
   const body = document.createElement("div");
-  body.textContent = text;
+  body.textContent = messageModel.text;
   message.appendChild(body);
 
-  const visibleActions = actions.filter(Boolean);
+  const visibleActions = messageModel.actions.filter(Boolean);
   if (visibleActions.length > 0) {
     const actionRow = document.createElement("div");
     actionRow.className = "chat-message-actions";
@@ -268,6 +290,46 @@ function normalizeChatText(value) {
   return normalizer
     ? normalizer(value)
     : String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function updateChatMode(mode) {
+  chatMode = mode === "ai" ? "ai" : "local";
+
+  for (const button of Array.from(chatModeToggle?.querySelectorAll("[data-mode]") || [])) {
+    const isActive = button.dataset.mode === chatMode;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  }
+
+  if (chatModeStatus) {
+    chatModeStatus.textContent = chatMode === "ai"
+      ? "AI mode still asks before sending extracted context to the local backend."
+      : "Local mode uses only visible page evidence and extension rules.";
+  }
+}
+
+function runJimaTool(name, payload) {
+  if (!jimaToolRegistry?.has(name)) {
+    addChatMessage("assistant", `That tool is not available yet: ${name}.`, [], "error");
+    return Promise.resolve(null);
+  }
+
+  return jimaToolRegistry.run(name, payload);
+}
+
+function buildCurrentAiContextBundle(userQuestion = "") {
+  const strictDetections = getStrictDetectionsForAssistant(latestDetections || {});
+  return globalThis.JimaChatV2?.buildAiContextBundle
+    ? globalThis.JimaChatV2.buildAiContextBundle({
+      pageContext: latestPageContext,
+      detections: strictDetections,
+      userQuestion
+    })
+    : {
+      pageContext: latestPageContext,
+      detections: strictDetections,
+      userQuestion
+    };
 }
 
 function getCandidateEvidenceText(candidate = {}) {
@@ -678,6 +740,36 @@ function isSafeMoodleDetailUrl(url) {
   } catch {
     return false;
   }
+}
+
+function isSafeMoodleFileUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "moodle.bgu.ac.il";
+  } catch {
+    return false;
+  }
+}
+
+function openFileCandidate(file) {
+  if (!file?.url || !isSafeMoodleFileUrl(file.url)) {
+    addChatMessage("assistant", "I can only open HTTPS BGU Moodle file/resource links from the latest checked page.", [], "error");
+    return;
+  }
+
+  chrome.tabs.create({ url: file.url, active: true }, () => {
+    if (chrome.runtime.lastError) {
+      addChatMessage("assistant", chrome.runtime.lastError.message || "I could not open this file link.", [], "error");
+      return;
+    }
+
+    addChatMessage(
+      "assistant",
+      `Opening ${file.name || "the selected file"} in Chrome. I have not read or analyzed its contents.`,
+      [],
+      "result"
+    );
+  });
 }
 
 function renderCourseMatches(matches, query) {
@@ -1101,8 +1193,12 @@ function showAiConfirmationInChat() {
 
   addChatMessage(
     "assistant",
-    "AI analysis will send the extracted page context and local detections to your local Jima backend. No API key is stored in the extension. Continue?",
-    [{ label: "Ask Jima with AI", dataset: { chatAction: "confirmAi" } }]
+    "AI analysis will send the latest extracted Moodle context and local evidence to your local Jima backend. File contents are not included unless explicit file analysis is added later. No API key is stored in the extension. Continue?",
+    [
+      { label: "Continue with AI", dataset: { chatAction: "confirmAi" } },
+      { label: "Cancel", dataset: { chatAction: "cancel" } }
+    ],
+    "confirmation"
   );
 }
 
@@ -1134,8 +1230,11 @@ function showFilesFromChat(query, mode = "show") {
 
   addChatMessage(
     "assistant",
-    `I found ${describeFileMix(files)} from ${fileSource.label}. I can show or download them after you confirm. Reading file contents will require a later file-analysis step.`,
+    `I found ${describeFileMix(files)} from ${fileSource.label}. I have not read the file contents. I can open/download the file after confirmation, or use AI only on the visible page context. Explicit file-content analysis is deferred to a later safe step.`,
     [
+      files.length === 1
+        ? { label: "Open file link", dataset: { chatAction: "openFile", fileIndex: 0 } }
+        : null,
       { label: "Prepare download", dataset: { chatAction: "downloadFiles", query } },
       { label: "Ask AI about visible page context", dataset: { chatAction: "ai" } }
     ]
@@ -1203,13 +1302,13 @@ function handleAssignmentDetailFollowup() {
 function getChatIntent(query) {
   const text = String(query || "").trim();
   if (!text) return "empty";
-  if (JIMA_CHAT_AI_PATTERN.test(text)) return "ai";
   if (JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN.test(text)) return "assignment_detail";
   if (JIMA_FOLLOWUP_DOWNLOAD_PATTERN.test(text)) return "download_files";
   if (JIMA_OPEN_FILE_PATTERN.test(text) || JIMA_FOLLOWUP_SHOW_FILES_PATTERN.test(text)) return "show_files";
   if (JIMA_CHAT_ANALYZE_PATTERN.test(text)) return "analyze_page";
   if (JIMA_CHAT_HOMEWORK_PATTERN.test(text) && /\b(this|current)\b.*\b(course|page)\b/i.test(text)) return "analyze_page";
   if (JIMA_CHAT_HOMEWORK_PATTERN.test(text)) return "homework_or_course";
+  if (JIMA_CHAT_AI_PATTERN.test(text) || chatMode === "ai") return "ai";
   return "unsupported";
 }
 
@@ -1224,37 +1323,41 @@ async function routeChatQuery(query, mirrorUser = true) {
   }
 
   if (intent === "ai") {
-    showAiConfirmationInChat();
+    if (aiQuestionInput) aiQuestionInput.value = trimmed || DEFAULT_AI_QUESTION;
+    await runJimaTool("confirmAi", { question: trimmed });
     return;
   }
 
   if (intent === "assignment_detail") {
-    handleAssignmentDetailFollowup();
+    await runJimaTool("inspectLatestAssignment", { query: trimmed });
     return;
   }
 
   if (intent === "download_files") {
-    showFilesFromChat(trimmed, "download");
+    await runJimaTool("prepareDownload", { query: trimmed });
     return;
   }
 
   if (intent === "show_files") {
-    showFilesFromChat(trimmed, "show");
+    await runJimaTool("listLatestFiles", { query: trimmed });
     return;
   }
 
   if (intent === "analyze_page") {
     addChatMessage("assistant", "I will check the visible Moodle page locally. Nothing is sent to AI or the backend.");
-    analyzeCurrentPage();
+    await runJimaTool("analyzeCurrentPageLocal");
     return;
   }
 
   if (intent === "homework_or_course") {
-    await handleCourseQueryFromChat(trimmed);
+    await runJimaTool("findSavedCourse", { query: trimmed });
     return;
   }
 
-  addChatMessage("assistant", "I can currently analyze the visible Moodle page, check one saved course after confirmation, show/download detected files, or ask AI after explicit confirmation.");
+  addChatMessage(
+    "assistant",
+    "I can analyze the visible Moodle page, check one saved course after confirmation, inspect one assignment for deadlines, show/download detected files, or use AI after explicit confirmation. I cannot read file contents yet; file analysis is a later explicit step."
+  );
 }
 
 function handleChatSubmit() {
@@ -1954,14 +2057,15 @@ function analyzeCurrentPage() {
   });
 }
 
-function askJimaWithAi() {
+function askJimaWithAi(questionOverride = "") {
   if (!latestPageContext) {
     setAiStatus("Run local analysis first, then ask Jima with AI.", "error");
     addChatMessage("assistant", "Run local analysis first, then I can ask AI after you confirm.");
     return;
   }
 
-  const userQuestion = aiQuestionInput?.value.trim() || DEFAULT_AI_QUESTION;
+  const userQuestion = String(questionOverride || "").trim() || aiQuestionInput?.value.trim() || DEFAULT_AI_QUESTION;
+  const bundle = buildCurrentAiContextBundle(userQuestion);
   setAiLoading(true);
   aiResults.hidden = true;
   setAiStatus("Sending extracted context to your local Jima backend...", "active");
@@ -1970,9 +2074,9 @@ function askJimaWithAi() {
   chrome.runtime.sendMessage(
     {
       type: "JIMA_ANALYZE_WITH_AI",
-      pageContext: latestPageContext,
-      detections: getStrictDetectionsForAssistant(latestDetections || {}),
-      userQuestion
+      pageContext: bundle.pageContext,
+      detections: bundle.detections,
+      userQuestion: bundle.userQuestion
     },
     (response) => {
       setAiLoading(false);
@@ -2097,6 +2201,81 @@ function downloadSelectedFiles(scope = "page") {
   );
 }
 
+function initializeJimaToolRegistry() {
+  if (!globalThis.JimaChatV2?.createToolRegistry) return;
+
+  jimaToolRegistry = globalThis.JimaChatV2.createToolRegistry({
+    analyzeCurrentPageLocal: {
+      description: "Extract visible Moodle context from the active tab and detect local homework/date/file evidence.",
+      mode: "local",
+      run: () => analyzeCurrentPage()
+    },
+    findSavedCourse: {
+      description: "Search saved/default course links locally and ask before opening one course page.",
+      mode: "local",
+      run: ({ query }) => handleCourseQueryFromChat(query)
+    },
+    openAndAnalyzeCourse: {
+      description: "Open one confirmed Moodle course page and run local analysis.",
+      mode: "local",
+      sensitive: true,
+      run: ({ matchIndex }) => openAndAnalyzeCourseMatch(matchIndex)
+    },
+    inspectLatestAssignment: {
+      description: "Inspect one selected or latest assignment/quiz page for visible deadline/status evidence.",
+      mode: "local",
+      sensitive: true,
+      run: () => handleAssignmentDetailFollowup()
+    },
+    inspectAssignment: {
+      description: "Open one confirmed assignment/quiz detail page and inspect visible evidence locally.",
+      mode: "local",
+      sensitive: true,
+      run: ({ candidate }) => inspectAssignmentCandidate(candidate)
+    },
+    listLatestFiles: {
+      description: "Show latest local file candidates without reading file contents.",
+      mode: "local",
+      run: ({ query }) => showFilesFromChat(query || "", "show")
+    },
+    prepareDownload: {
+      description: "Show matching file candidates and require confirmation before Chrome downloads anything.",
+      mode: "local",
+      sensitive: true,
+      run: ({ query }) => showFilesFromChat(query || "", "download")
+    },
+    openFileCandidate: {
+      description: "Open one user-selected Moodle file/resource link without reading its contents.",
+      mode: "local",
+      sensitive: true,
+      run: ({ file }) => openFileCandidate(file)
+    },
+    downloadConfirmed: {
+      description: "Start Chrome downloads for explicitly selected files.",
+      mode: "local",
+      sensitive: true,
+      run: ({ scope }) => downloadSelectedFiles(scope || "page")
+    },
+    confirmAi: {
+      description: "Ask for explicit confirmation before sending the latest extracted context to the local backend.",
+      mode: "ai",
+      sensitive: true,
+      run: ({ question }) => {
+        if (question && aiQuestionInput) aiQuestionInput.value = question;
+        showAiConfirmationInChat();
+      }
+    },
+    askAiWithContext: {
+      description: "Send the latest minimal context bundle to the local Jima backend after explicit confirmation.",
+      mode: "ai",
+      sensitive: true,
+      run: ({ question } = {}) => askJimaWithAi(question)
+    }
+  });
+}
+
+initializeJimaToolRegistry();
+
 if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);
 }
@@ -2107,10 +2286,24 @@ if (chatSendBtn) {
 
 if (chatInput) {
   chatInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleChatSubmit();
     }
+  });
+}
+
+if (chatModeToggle) {
+  chatModeToggle.addEventListener("click", (event) => {
+    const button = event.target?.closest?.("[data-mode]");
+    if (!button) return;
+    updateChatMode(button.dataset.mode);
+    addChatMessage(
+      "system",
+      chatMode === "ai"
+        ? "AI mode selected. I will still ask before sending any extracted Moodle context to the local backend."
+        : "Local mode selected. I will answer with extension-side evidence and rules only."
+    );
   });
 }
 
@@ -2121,7 +2314,8 @@ if (suggestedActions) {
 
     const action = button.dataset.chatAction;
     const prompts = {
-      analyze: "Analyze current Moodle page",
+      currentPage: "Analyze current Moodle page",
+      savedCourse: "Do I have homework in a saved course?",
       homework: "Do I have homework in this course?",
       files: "Show files on this page",
       ai: "Ask Jima with AI"
@@ -2138,13 +2332,23 @@ if (chatMessages) {
     if (!button) return;
 
     const action = button.dataset.chatAction;
-    if (action === "confirmAi" || action === "ai") {
-      askJimaWithAi();
+    if (action === "confirmAi") {
+      runJimaTool("askAiWithContext", { question: aiQuestionInput?.value.trim() || "" });
+      return;
+    }
+
+    if (action === "ai") {
+      runJimaTool("confirmAi", { question: aiQuestionInput?.value.trim() || "" });
+      return;
+    }
+
+    if (action === "cancel") {
+      addChatMessage("assistant", "Canceled. No context was sent and no action was run.");
       return;
     }
 
     if (action === "checkCourse") {
-      openAndAnalyzeCourseMatch(button.dataset.matchIndex).catch(() => {
+      runJimaTool("openAndAnalyzeCourse", { matchIndex: button.dataset.matchIndex }).catch(() => {
         addChatMessage("assistant", "I could not check this course.");
         setCourseCheckButtonsDisabled(false);
       });
@@ -2154,12 +2358,18 @@ if (chatMessages) {
     if (action === "inspectAssignment") {
       const candidate = getInspectableHomeworkCandidates()
         .find((item) => item.url === button.dataset.candidateUrl);
-      inspectAssignmentCandidate(candidate);
+      runJimaTool("inspectAssignment", { candidate });
       return;
     }
 
     if (action === "downloadFiles") {
-      showFilesFromChat(button.dataset.query || "", "download");
+      runJimaTool("prepareDownload", { query: button.dataset.query || "" });
+      return;
+    }
+
+    if (action === "openFile") {
+      const file = latestFollowupFiles[Number(button.dataset.fileIndex)];
+      runJimaTool("openFileCandidate", { file });
     }
   });
 }
@@ -2209,7 +2419,9 @@ if (homeworkList) {
 }
 
 if (askAiBtn) {
-  askAiBtn.addEventListener("click", askJimaWithAi);
+  askAiBtn.addEventListener("click", () => {
+    runJimaTool("confirmAi", { question: aiQuestionInput?.value.trim() || "" });
+  });
 }
 
 if (filesList) {
@@ -2222,7 +2434,7 @@ if (filesList) {
 }
 
 if (downloadSelectedBtn) {
-  downloadSelectedBtn.addEventListener("click", () => downloadSelectedFiles("page"));
+  downloadSelectedBtn.addEventListener("click", () => runJimaTool("downloadConfirmed", { scope: "page" }));
 }
 
 if (assignmentDetailFiles) {
@@ -2235,7 +2447,7 @@ if (assignmentDetailFiles) {
 }
 
 if (downloadDetailSelectedBtn) {
-  downloadDetailSelectedBtn.addEventListener("click", () => downloadSelectedFiles("detail"));
+  downloadDetailSelectedBtn.addEventListener("click", () => runJimaTool("downloadConfirmed", { scope: "detail" }));
 }
 
 if (saveDetailTaskBtn) {
@@ -2267,7 +2479,7 @@ if (followupFileList) {
 }
 
 if (downloadFollowupSelectedBtn) {
-  downloadFollowupSelectedBtn.addEventListener("click", () => downloadSelectedFiles("followup"));
+  downloadFollowupSelectedBtn.addEventListener("click", () => runJimaTool("downloadConfirmed", { scope: "followup" }));
 }
 
 if (cancelFollowupDownloadBtn) {
@@ -2294,9 +2506,11 @@ if (chrome.storage?.onChanged && globalThis.JimaTasks) {
   });
 }
 
+updateChatMode("local");
+
 addChatMessage(
   "assistant",
-  "Hi, I am Jima. Ask me to check the current Moodle page, look for homework in a saved course, or show files I found. I only use page context after you ask."
+  "Hi, I am Jima. Ask me about homework, deadlines, saved courses, or Moodle files. I start in Local mode, and I will ask before using AI, opening assignment details, or downloading files."
 );
 
 refreshSavedTasks().catch(() => {

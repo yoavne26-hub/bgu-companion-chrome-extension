@@ -21,26 +21,36 @@
         <div class="chat-heading">
           <div>
             <h2 id="chatTitle">Chat with Jima</h2>
-            <p>Ask about the current Moodle page, a saved course, or files Jima already found.</p>
+            <p>Ask naturally. Jima will choose a safe local tool, or ask before using AI.</p>
           </div>
         </div>
 
         <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
 
+        <div class="mode-row" aria-label="Jima response mode">
+          <div id="chatModeToggle" class="mode-toggle" role="group" aria-label="Jima mode">
+            <button class="mode-option is-active" type="button" data-mode="local" aria-pressed="true">Local</button>
+            <button class="mode-option" type="button" data-mode="ai" aria-pressed="false">AI</button>
+          </div>
+          <p id="chatModeStatus" class="mode-status">Local mode uses only visible page evidence and extension rules.</p>
+        </div>
+
         <div class="suggested-actions" aria-label="Suggested actions">
-          <button class="suggested-chip" type="button" data-chat-action="analyze">Analyze current Moodle page</button>
-          <button class="suggested-chip" type="button" data-chat-action="homework">Do I have homework in this course?</button>
-          <button class="suggested-chip" type="button" data-chat-action="files">Show files on this page</button>
-          <button class="suggested-chip" type="button" data-chat-action="ai">Ask Jima with AI</button>
+          <button class="suggested-chip" type="button" data-chat-action="currentPage">Current page</button>
+          <button class="suggested-chip" type="button" data-chat-action="savedCourse">Saved course</button>
+          <button class="suggested-chip" type="button" data-chat-action="files">Files</button>
+          <button class="suggested-chip" type="button" data-chat-action="homework">Homework</button>
+          <button class="suggested-chip" type="button" data-chat-action="ai">Analyze with AI</button>
         </div>
 
         <div class="chat-compose">
-          <input
+          <textarea
             id="chatInput"
-            type="text"
+            rows="2"
             placeholder="Ask Jima, e.g. Do I have homework in Finance?"
+            aria-label="Ask Jima"
             autocomplete="off"
-          />
+          ></textarea>
           <button id="chatSendBtn" class="primary-action" type="button">Send</button>
         </div>
 
@@ -93,7 +103,7 @@
           </button>
 
           <div id="statusMessage" class="status-message" role="status" aria-live="polite">
-            This preview stays local. AI analysis will be added in a later phase.
+            Local scans stay in the browser. AI only runs after explicit confirmation.
           </div>
 
           <section class="followup-panel" aria-labelledby="followupTitle">
@@ -134,7 +144,7 @@
           </div>
 
           <div class="local-note">
-            This detection is rule-based and stays local. AI analysis will be added in a later phase.
+            This detection is rule-based and stays local. AI analysis requires a separate confirmation.
           </div>
 
           <section id="localAnswerPanel" class="local-answer-panel" aria-labelledby="localAnswerTitle" hidden>
@@ -295,6 +305,7 @@
   <script src="../data/courses-data.js"></script>
   <script src="../shared/jima-tasks.js"></script>
   <script src="../shared/jima-course-resolver.js"></script>
+  <script src="jima-chat-v2.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

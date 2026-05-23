@@ -75,6 +75,14 @@ The Jima side panel now uses a chat-first UX. Local chat routing is deterministi
 
 Assignment deadline follow-ups are also local. When the user asks Jima to enter/check a recently detected homework item, the extension can open one selected Moodle assignment or quiz detail page and extract visible date labels such as open, due, closing, cut-off, and time remaining fields. This does not call this backend or OpenAI automatically.
 
+Jima Chat V2 keeps the first side-panel experience as one chat/search surface with Local and AI modes:
+
+- Local mode uses only extension-side extraction, deterministic routing, saved-course lookup, assignment detail inspection, saved tasks, and explicit selected-file downloads.
+- AI mode still requires confirmation before the extension sends the latest minimal extracted Moodle context and detections to this backend.
+- The extension can suggest tools/actions in chat, but sensitive actions such as AI requests and downloads still require a separate user click.
+- File links can be listed, opened by the browser, or downloaded after confirmation. File contents are not read or uploaded in this phase.
+- File-content analysis is deferred; do not claim that Jima read a PDF, DOCX, or other file unless a future explicit file-analysis endpoint extracts text and supplies it to the model.
+
 ## Endpoints
 
 ### GET /health
