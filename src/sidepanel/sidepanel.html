@@ -75,28 +75,45 @@
             </div>
           </div>
 
-          <details id="fileAnalysisDetails" class="file-analysis-details">
-            <summary>Analyze selected file</summary>
-            <div class="file-analysis-body">
-              <p class="file-analysis-note">
-                File contents are sent to your local Jima backend only after you choose a file and click analyze.
-              </p>
-              <label class="file-analysis-picker">
-                <span>Choose PDF, DOCX, or TXT</span>
-                <input id="fileAnalysisInput" type="file" accept=".txt,.pdf,.docx" />
-              </label>
-              <textarea
-                id="fileAnalysisQuestion"
-                rows="2"
-                placeholder="Optional: ask what you want Jima to explain from this file..."
-                aria-label="File analysis question"
-              ></textarea>
-              <button id="analyzeSelectedFileBtn" class="secondary-action" type="button" disabled>
-                Analyze selected file
+          <section id="fileAnalysisDetails" class="file-analysis-card" aria-labelledby="fileAnalysisTitle" hidden>
+            <div class="file-analysis-card-header">
+              <div>
+                <h3 id="fileAnalysisTitle">Analyze a file</h3>
+                <p>
+                  Attach a downloaded PDF, DOCX, or TXT file. Jima reads it only after you click Analyze file.
+                </p>
+              </div>
+              <button id="cancelFileAnalysisBtn" class="quiet-action compact-action" type="button">
+                Cancel
               </button>
-              <div id="fileAnalysisStatus" class="status-message compact" role="status" aria-live="polite"></div>
             </div>
-          </details>
+
+            <label id="fileAnalysisDropzone" class="file-analysis-dropzone" for="fileAnalysisInput" tabindex="0">
+              <input id="fileAnalysisInput" type="file" accept=".txt,.pdf,.docx" />
+              <span class="dropzone-title">Choose file or drop it here</span>
+              <span class="dropzone-meta">PDF, DOCX, TXT up to 10MB</span>
+            </label>
+
+            <div id="fileAnalysisSelected" class="selected-file-pill" hidden></div>
+
+            <textarea
+              id="fileAnalysisQuestion"
+              rows="2"
+              placeholder="Optional: ask what you want Jima to explain from this file..."
+              aria-label="File analysis question"
+            ></textarea>
+
+            <div class="file-analysis-actions">
+              <button id="analyzeSelectedFileBtn" class="primary-action" type="button" disabled>
+                Analyze file
+              </button>
+            </div>
+
+            <p class="file-analysis-note">
+              File contents are sent to your local Jima backend only after you choose a file and click Analyze file.
+            </p>
+            <div id="fileAnalysisStatus" class="status-message compact" role="status" aria-live="polite"></div>
+          </section>
         </div>
       </section>
 

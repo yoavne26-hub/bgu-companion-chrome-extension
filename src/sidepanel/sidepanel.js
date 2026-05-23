@@ -74,9 +74,12 @@ const downloadFollowupSelectedBtn = document.getElementById("downloadFollowupSel
 const cancelFollowupDownloadBtn = document.getElementById("cancelFollowupDownloadBtn");
 const followupDownloadStatus = document.getElementById("followupDownloadStatus");
 const fileAnalysisDetails = document.getElementById("fileAnalysisDetails");
+const fileAnalysisDropzone = document.getElementById("fileAnalysisDropzone");
 const fileAnalysisInput = document.getElementById("fileAnalysisInput");
 const fileAnalysisQuestion = document.getElementById("fileAnalysisQuestion");
+const fileAnalysisSelected = document.getElementById("fileAnalysisSelected");
 const analyzeSelectedFileBtn = document.getElementById("analyzeSelectedFileBtn");
+const cancelFileAnalysisBtn = document.getElementById("cancelFileAnalysisBtn");
 const fileAnalysisStatus = document.getElementById("fileAnalysisStatus");
 
 const JIMA_FILE_ANALYSIS_URL = "http://localhost:3000/api/jima/analyze-file";
@@ -100,6 +103,7 @@ let latestCheckedCourseName = "";
 let chatMode = "local";
 let jimaToolRegistry = null;
 let pendingAiConfirmation = false;
+let selectedAnalysisFile = null;
 const jimaChatHistory = [];
 
 const jimaSessionMemory = {
@@ -127,8 +131,6 @@ const JIMA_STRICT_TASK_PATTERN = /(homework|assignment|task|submit|submission|du
 const JIMA_RESOURCE_ONLY_PATTERN = /(lecture|resource|file|folder|slides?|presentation|\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5|\u05d7\u05d5\u05de\u05e8|\u05de\u05e6\u05d2\u05ea)/i;
 const JIMA_OPEN_FILE_PATTERN = /\b(open|view|show|check)\b.*\b(file|lecture|resource|pdf|slides?)\b|\b(what is|what's)\b.*\b(about|lecture|file|resource)\b|\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e4\u05ea\u05d7.*\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e6\u05d2.*\u05e7\u05d5\u05d1\u05e5/i;
 const JIMA_FILE_REFERENCE_PATTERN = /\b(?:lecture|lec|lesson)\s*(?:number\s*)?\d+\b|\b\d+\s*(?:lecture|lec|lesson)\b|\u05d4\u05e8\u05e6\u05d0\u05d4\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4\s*\d+|\d+\s*\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05e7\u05d5\u05d1\u05e5/i;
-const JIMA_ANALYZE_SELECTED_FILE_PATTERN = /\b(analy[sz]e|read|summari[sz]e|explain)\b\s+(?:a\s+|the\s+|selected\s+|local\s+)?file\b|\bfile analysis\b|\u05e0\u05ea\u05d7\u05d9?\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05e7\u05e8\u05d0\u05d9?\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05e1\u05db\u05de\u05d9?\s+\u05e7\u05d5\u05d1\u05e5/i;
-
 function setStatus(text, type = "") {
   if (!statusMessage) return;
   statusMessage.textContent = text;
@@ -233,8 +235,8 @@ function setFollowupDownloadLoading(isLoading) {
 
 function setFileAnalysisLoading(isLoading) {
   if (!analyzeSelectedFileBtn) return;
-  analyzeSelectedFileBtn.disabled = isLoading || !fileAnalysisInput?.files?.[0];
-  analyzeSelectedFileBtn.textContent = isLoading ? "Analyzing selected file..." : "Analyze selected file";
+  analyzeSelectedFileBtn.disabled = isLoading || !getSelectedAnalysisFile();
+  analyzeSelectedFileBtn.textContent = isLoading ? "Analyzing file..." : "Analyze file";
 }
 
 function clearList(listEl) {
@@ -1422,7 +1424,7 @@ function showAiConfirmationInChat() {
   pendingAiConfirmation = true;
   addChatMessage(
     "assistant",
-    "AI analysis will send the latest extracted Moodle context and local evidence to your local Jima backend. File contents are not included unless explicit file analysis is added later. No API key is stored in the extension. Continue?",
+    "AI analysis will send the latest extracted Moodle context and local evidence to your local Jima backend. File contents are not included unless you separately attach a file and click Analyze file. No API key is stored in the extension. Continue?",
     [
       { label: "Continue with AI", dataset: { chatAction: "confirmAi" } },
       { label: "Cancel", dataset: { chatAction: "cancel" } }
@@ -1486,7 +1488,7 @@ function showFilesFromChat(query, mode = "show") {
       files.length === 1
         ? { label: "Download file", dataset: { chatAction: "downloadFiles", query } }
         : { label: "Prepare download", dataset: { chatAction: "downloadFiles", query } },
-      { label: "Analyze selected file", dataset: { chatAction: "showFileAnalysis", question: query } }
+      { label: "Attach file for analysis", dataset: { chatAction: "showFileAnalysis", question: query } }
     ]
   );
 }
@@ -1505,7 +1507,7 @@ function showFileReadLimitation(query) {
     openFileAnalysisPanel(query);
     addChatMessage(
       "assistant",
-      "I am not sure which Moodle file you mean yet. If you already downloaded a file, choose it in Analyze selected file and click analyze. I will only read the local file after that explicit upload."
+      "I am not sure which Moodle file you mean yet. If you already downloaded a file, attach it here and click Analyze file. I will only read the local file after that explicit action."
     );
     return;
   }
@@ -1516,7 +1518,8 @@ function showFileReadLimitation(query) {
     renderFollowupFiles({ ...latestSource, files: availableFiles }, "show");
     addChatMessage(
       "assistant",
-      "I found files, but I could not confidently match the one you asked about. I have not read file contents. Choose one from the files list, or analyze the page again if the file is missing."
+      "I found files, but I could not confidently match the one you asked about. I have not read file contents. Choose one from the files list, or analyze the page again if the file is missing.",
+      [{ label: "Attach file for analysis", dataset: { chatAction: "showFileAnalysis", question: query } }]
     );
     return;
   }
@@ -1537,7 +1540,7 @@ function showFileReadLimitation(query) {
       [
         { label: "Download file", dataset: { chatAction: "downloadFiles", query } },
         { label: "Open file", dataset: { chatAction: "openFile", fileIndex: 0 } },
-        { label: "Analyze selected file", dataset: { chatAction: "showFileAnalysis", question: query } }
+        { label: "Attach file for analysis", dataset: { chatAction: "showFileAnalysis", question: query } }
       ]
     );
     return;
@@ -1548,34 +1551,96 @@ function showFileReadLimitation(query) {
     `I found ${files.length} matching file/resource candidates, but I have not read their contents. Choose one to open/download, or choose the downloaded local file for explicit file analysis.`,
     [
       { label: "Prepare download", dataset: { chatAction: "downloadFiles", query } },
-      { label: "Analyze selected file", dataset: { chatAction: "showFileAnalysis", question: query } }
+      { label: "Attach file for analysis", dataset: { chatAction: "showFileAnalysis", question: query } }
     ]
   );
 }
 
 function openFileAnalysisPanel(question = "") {
   if (fileAnalysisDetails) {
-    fileAnalysisDetails.open = true;
+    fileAnalysisDetails.hidden = false;
+    if ("open" in fileAnalysisDetails) fileAnalysisDetails.open = true;
     fileAnalysisDetails.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
-  if (question && fileAnalysisQuestion && !fileAnalysisQuestion.value.trim()) {
-    fileAnalysisQuestion.value = question;
+  if (fileAnalysisQuestion && !fileAnalysisQuestion.value.trim()) {
+    fileAnalysisQuestion.value = question || "Summarize this file.";
   }
 
   updateFileAnalysisButtonState();
   setFileAnalysisStatus(
-    "Choose the downloaded local file first. Nothing is uploaded until you click Analyze selected file.",
+    "Choose or drop the downloaded local file first. Nothing is uploaded until you click Analyze file.",
     "active"
   );
 
   window.setTimeout(() => {
-    fileAnalysisInput?.focus();
+    fileAnalysisDropzone?.focus();
   }, 80);
 }
 
 function getSelectedAnalysisFile() {
-  return fileAnalysisInput?.files?.[0] || null;
+  return selectedAnalysisFile || fileAnalysisInput?.files?.[0] || null;
+}
+
+function formatFileSize(bytes = 0) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "size unknown";
+  const units = ["B", "KB", "MB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function renderSelectedAnalysisFile(file) {
+  if (!fileAnalysisSelected) return;
+  if (!file) {
+    fileAnalysisSelected.hidden = true;
+    fileAnalysisSelected.textContent = "";
+    return;
+  }
+
+  fileAnalysisSelected.hidden = false;
+  fileAnalysisSelected.textContent = `${file.name} - ${formatFileSize(file.size)}`;
+}
+
+function setSelectedAnalysisFile(file, announce = false) {
+  selectedAnalysisFile = file || null;
+  renderSelectedAnalysisFile(selectedAnalysisFile);
+  updateFileAnalysisButtonState();
+
+  if (!file) {
+    setFileAnalysisStatus("Choose a PDF, DOCX, or TXT file.", "");
+    return;
+  }
+
+  const validationError = validateSelectedAnalysisFile(file);
+  setFileAnalysisStatus(
+    validationError || `File selected: ${file.name}. Click Analyze file and I will summarize it using the local backend.`,
+    validationError ? "error" : "success"
+  );
+
+  if (!validationError && announce) {
+    addChatMessage(
+      "assistant",
+      `File selected: ${file.name}. Click Analyze file and I will summarize it using the local backend.`
+    );
+  }
+}
+
+function closeFileAnalysisPanel() {
+  selectedAnalysisFile = null;
+  if (fileAnalysisInput) fileAnalysisInput.value = "";
+  if (fileAnalysisQuestion) fileAnalysisQuestion.value = "";
+  renderSelectedAnalysisFile(null);
+  setFileAnalysisStatus("", "");
+  updateFileAnalysisButtonState();
+  if (fileAnalysisDetails) {
+    fileAnalysisDetails.hidden = true;
+    if ("open" in fileAnalysisDetails) fileAnalysisDetails.open = false;
+  }
 }
 
 function getFileExtension(fileName = "") {
@@ -1647,8 +1712,8 @@ async function analyzeSelectedLocalFile() {
   );
 
   setFileAnalysisLoading(true);
-  setFileAnalysisStatus("Analyzing selected file through the local backend...", "active");
-  addChatMessage("assistant", `Confirmed. I am sending "${file.name}" to your local Jima backend for text extraction and AI analysis. This is based on your selected local file.`);
+  setFileAnalysisStatus(`Analyzing ${file.name} through the local backend...`, "active");
+  addChatMessage("assistant", `Analyzing ${file.name} through the local backend...`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), JIMA_FILE_ANALYSIS_TIMEOUT_MS);
@@ -1768,9 +1833,10 @@ async function routeChatQuery(query, mirrorUser = true) {
     return;
   }
 
-  if (JIMA_ANALYZE_SELECTED_FILE_PATTERN.test(trimmed) && !JIMA_FILE_REFERENCE_PATTERN.test(trimmed)) {
+  const genericFileAnalysisRequest = /\b(analy[sz]e|read|summari[sz]e|explain)\b\s+(?:a\s+|the\s+|selected\s+|local\s+)?file\b|\bfile analysis\b|\u05e0\u05ea\u05d7\u05d9?\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05e7\u05e8\u05d0\u05d9?\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05e1\u05db\u05de\u05d9?\s+\u05e7\u05d5\u05d1\u05e5/i.test(trimmed);
+  if (genericFileAnalysisRequest && !JIMA_FILE_REFERENCE_PATTERN.test(trimmed)) {
     openFileAnalysisPanel(trimmed);
-    addChatMessage("assistant", "Choose a PDF, DOCX, or TXT file in Analyze selected file, then click Analyze selected file. I will only upload the file after that click.");
+    addChatMessage("assistant", "Attach a PDF, DOCX, or TXT file here, then click Analyze file. I will only upload the file after that explicit click.");
     return;
   }
 
@@ -2603,9 +2669,9 @@ function renderScopedDownloadResult(response, scope = "page") {
   if (started > 0) {
     addChatMessage(
       "assistant",
-      "Download started. After it finishes, choose the downloaded file in Analyze selected file if you want me to summarize its contents.",
+      "Download started. After it finishes, attach the downloaded file if you want me to summarize its contents.",
       [
-        { label: "Analyze selected file", dataset: { chatAction: "showFileAnalysis" } }
+        { label: "Attach file for analysis", dataset: { chatAction: "showFileAnalysis" } }
       ],
       "result"
     );
@@ -2828,7 +2894,7 @@ if (suggestedActions) {
       savedCourse: "Do I have homework in a saved course?",
       homework: "Do I have homework in this course?",
       files: "Show files on this page",
-      analyzeFile: "Analyze selected file",
+      analyzeFile: "Analyze file",
       ai: "Ask Jima with AI"
     };
     routeChatQuery(prompts[action] || button.textContent || "").catch(() => {
@@ -2891,7 +2957,7 @@ if (chatMessages) {
 
     if (action === "showFileAnalysis" || action === "analyzeFileUnavailable") {
       runJimaTool("showFileAnalysis", { question: button.dataset.question || "" });
-      addChatMessage("assistant", "Choose the downloaded file first, then click Analyze selected file. File contents are sent only to your local backend after that click.");
+      addChatMessage("assistant", "Attach the downloaded file here, then click Analyze file. File contents are sent only to your local backend after that click.");
       return;
     }
 
@@ -3016,24 +3082,58 @@ if (cancelFollowupDownloadBtn) {
 
 if (fileAnalysisInput) {
   fileAnalysisInput.addEventListener("change", () => {
-    const file = getSelectedAnalysisFile();
-    updateFileAnalysisButtonState();
-    if (!file) {
-      setFileAnalysisStatus("Choose a PDF, DOCX, or TXT file.", "");
-      return;
-    }
-
-    const validationError = validateSelectedAnalysisFile(file);
-    setFileAnalysisStatus(
-      validationError || `Selected ${file.name}. Click Analyze selected file to send it to your local backend.`,
-      validationError ? "error" : "success"
-    );
+    setSelectedAnalysisFile(fileAnalysisInput.files?.[0] || null, true);
   });
 }
 
 if (analyzeSelectedFileBtn) {
   analyzeSelectedFileBtn.addEventListener("click", () => {
     runJimaTool("analyzeSelectedFile");
+  });
+}
+
+if (cancelFileAnalysisBtn) {
+  cancelFileAnalysisBtn.addEventListener("click", () => {
+    closeFileAnalysisPanel();
+    addChatMessage("assistant", "File analysis canceled. No file was sent.");
+  });
+}
+
+if (fileAnalysisDropzone) {
+  fileAnalysisDropzone.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    fileAnalysisInput?.click();
+  });
+
+  ["dragenter", "dragover"].forEach((eventName) => {
+    fileAnalysisDropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      fileAnalysisDropzone.classList.add("is-dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((eventName) => {
+    fileAnalysisDropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      if (eventName === "dragleave" && fileAnalysisDropzone.contains(event.relatedTarget)) return;
+      fileAnalysisDropzone.classList.remove("is-dragover");
+    });
+  });
+
+  fileAnalysisDropzone.addEventListener("drop", (event) => {
+    const file = event.dataTransfer?.files?.[0] || null;
+    if (!file) return;
+
+    try {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      if (fileAnalysisInput) fileAnalysisInput.files = transfer.files;
+    } catch {
+      // Some browsers do not allow programmatic assignment to file inputs after drop.
+    }
+
+    setSelectedAnalysisFile(file, true);
   });
 }
 

@@ -59,7 +59,7 @@ Start this backend before using "Ask Jima with AI" or explicit selected-file ana
 
 Detected Moodle file downloads are handled by the Chrome Extension, not this backend. Downloads only start after the user selects files in the Jima side panel and clicks "Download selected files". Moodle file links are not fetched or read automatically.
 
-Explicit selected-file analysis is separate: the user must manually choose a local `.txt`, `.pdf`, or `.docx` file in Jima and click "Analyze selected file". Only then is that selected file sent to this local backend for text extraction and AI analysis. Uploaded files are held in memory for the request and are not permanently stored.
+Explicit selected-file analysis is separate: the user must manually choose or drop a local `.txt`, `.pdf`, or `.docx` file in Jima and click "Analyze file". Only then is that selected file sent to this local backend for text extraction and AI analysis. Uploaded files are held in memory for the request and are not permanently stored.
 
 Saved Jima academic tasks are stored locally by the Chrome Extension in `chrome.storage.local` under `jimaSavedTasks`. They are not sent to this backend or to OpenAI.
 
@@ -84,8 +84,8 @@ Jima Chat V2 keeps the first side-panel experience as one chat/search surface wi
 - AI mode does not override local tools. File download/show/open requests, current-page scans, saved-course checks, and assignment deadline follow-ups stay local first.
 - The extension can suggest tools/actions in chat, but sensitive actions such as AI requests and downloads still require a separate user click.
 - File links can be listed, opened by the browser, or downloaded after confirmation. Moodle files are not read or uploaded automatically.
-- When a student asks what a Moodle file is about, the extension first explains that Jima has only seen the file title/link. It then offers download/open actions and expands the explicit selected-file analysis panel when requested.
-- After a download starts, the extension guides the student to manually choose the downloaded file in "Analyze selected file" if they want a content summary.
+- When a student asks what a Moodle file is about, the extension first explains that Jima has only seen the file title/link. It then offers download/open actions and opens a compact chat-native file analysis card when requested.
+- After a download starts, the extension guides the student to manually attach the downloaded file if they want a content summary.
 - Precise file references such as "lecture 5", "הרצאה 5", or "5 הרצאה" are matched locally against visible file/resource titles. Jima remembers the last referenced file during the side-panel session for follow-ups like "download it" or "can you read it".
 - File-content analysis is explicit only: the user manually selects a local TXT, PDF, or DOCX file, then the backend extracts text and supplies that text to the model. PPTX is not supported yet.
 
@@ -186,7 +186,7 @@ Successful responses include:
 - This backend does not store Moodle content.
 - Local rule-based detection still works without this backend.
 - Selected-file downloads happen in the Chrome Extension after explicit user action; downloaded Moodle files are not sent to the backend automatically.
-- Selected-file analysis sends only the file manually chosen through the side panel file input, after the user clicks "Analyze selected file".
+- Selected-file analysis sends only the file manually chosen or dropped through the side panel chat card, after the user clicks "Analyze file".
 - Saved Jima tasks stay local in browser storage and are not synced through this backend.
 - Saved-course matching and single-course scans are local extension actions and do not call this backend.
 - Assignment detail checks are local extension actions and do not call this backend.
