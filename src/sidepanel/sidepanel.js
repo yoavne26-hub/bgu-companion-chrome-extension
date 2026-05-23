@@ -101,6 +101,7 @@ const JIMA_FOLLOWUP_SHOW_FILES_PATTERN = /(show|list|what|which).*\b(file|files|
 const JIMA_CHAT_ANALYZE_PATTERN = /(analy[sz]e|check|scan).*(current|this|page|moodle)|\bcurrent moodle page\b/i;
 const JIMA_CHAT_AI_PATTERN = /\b(ai|openai|gpt)\b|ask jima with ai|explain with ai/i;
 const JIMA_CHAT_HOMEWORK_PATTERN = /(homework|assignment|assignments|task|tasks|due|deadline|submit|submission|quiz|exercise|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05de\u05d8\u05dc\u05d5\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df)/i;
+const JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN = /(enter|open|check|inspect).*\b(homework|assignment|task|quiz)\b|\b(homework|assignment|task|quiz)\b.*\b(deadline|due date|date|close|closes|closing|due)\b|\b(what|when).*\b(deadline|due date|due|close|closes|closing)\b|\b(deadline date|homework date)\b|\u05ea\u05d9\u05db\u05e0\u05e1\s+\u05dc\u05de\u05d8\u05dc\u05d4|\u05db\u05e0\u05e1\s+\u05dc\u05de\u05d8\u05dc\u05d4|\u05ea\u05d1\u05d3\u05d5\u05e7\s+\u05d0\u05ea\s+\u05d4\u05de\u05d8\u05dc\u05d4|\u05de\u05d4\s+\u05d4\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05de\u05d4\s+\u05d4\u05de\u05d5\u05e2\u05d3\s+\u05d4\u05d2\u05e9\u05d4|\u05de\u05d4\s+\u05ea\u05d0\u05e8\u05d9\u05da\s+\u05d4\u05d4\u05d2\u05e9\u05d4|\u05de\u05ea\u05d9\s+\u05d4\u05d4\u05d2\u05e9\u05d4|\u05de\u05ea\u05d9\s+\u05d6\u05d4\s+\u05e0\u05e1\u05d2\u05e8|\u05de\u05ea\u05d9\s+\u05de\u05e1\u05ea\u05d9\u05d9\u05dd|\u05ea\u05d0\u05e8\u05d9\u05da\s+\u05dc\u05de\u05d8\u05dc\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df\s+\u05dc\u05de\u05d8\u05dc\u05d4/i;
 const JIMA_STRICT_TASK_PATTERN = /(homework|assignment|task|submit|submission|due|deadline|exercise|project|quiz|lab|\/mod\/(?:assign|quiz|workshop)\/view\.php|\u05de\u05d8\u05dc\u05d4|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05de\u05d5\u05e2\u05d3\s+\u05d4\u05d2\u05e9\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df|\u05e4\u05e8\u05d5\u05d9\u05d9\u05e7\u05d8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e2\u05d1\u05d3\u05d4)/i;
 const JIMA_RESOURCE_ONLY_PATTERN = /(lecture|resource|file|folder|slides?|presentation|\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5|\u05d7\u05d5\u05de\u05e8|\u05de\u05e6\u05d2\u05ea)/i;
 const JIMA_OPEN_FILE_PATTERN = /\b(open|view|show|check)\b.*\b(file|lecture|resource|pdf|slides?)\b|\b(what is|what's)\b.*\b(about|lecture|file|resource)\b|\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e4\u05ea\u05d7.*\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e6\u05d2.*\u05e7\u05d5\u05d1\u05e5/i;
@@ -300,6 +301,35 @@ function getStrictDetectionsForAssistant(detections = {}) {
   };
 }
 
+function getMoodleActivityTypeFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const match = parsed.pathname.match(/\/mod\/([^/]+)\/view\.php$/i);
+    return match?.[1] || "";
+  } catch {
+    return "";
+  }
+}
+
+function isInspectableAssignmentCandidate(candidate = {}) {
+  const activityType = candidate.activityType || getMoodleActivityTypeFromUrl(candidate.url);
+  return /^(assign|quiz)$/i.test(activityType);
+}
+
+function getAssignmentCandidateRank(candidate = {}) {
+  const activityType = candidate.activityType || getMoodleActivityTypeFromUrl(candidate.url);
+  if (activityType === "assign") return 100;
+  if (activityType === "quiz") return 90;
+  if (isStrictHomeworkCandidate(candidate)) return 50;
+  return 0;
+}
+
+function getInspectableHomeworkCandidates() {
+  return [...(latestHomeworkCandidates || [])]
+    .filter((candidate) => candidate?.url && isInspectableAssignmentCandidate(candidate))
+    .sort((a, b) => getAssignmentCandidateRank(b) - getAssignmentCandidateRank(a));
+}
+
 function describeFileMix(files = []) {
   const counts = {
     homework: 0,
@@ -467,10 +497,86 @@ function buildCourseLocalSummary(pageContext, detections = {}, courseName = "") 
   return { summary, bullets };
 }
 
+function getAssignmentDetailDates(detail = {}) {
+  return detail.dates || {};
+}
+
+function getLikelyDeadline(detail = {}) {
+  const dates = getAssignmentDetailDates(detail);
+  if (dates.dueAt) {
+    return {
+      ...dates.dueAt,
+      kind: "dueAt",
+      interpretation: "This is the visible due date."
+    };
+  }
+
+  if (dates.cutoffAt) {
+    return {
+      ...dates.cutoffAt,
+      kind: "cutoffAt",
+      interpretation: "This is the visible cut-off date."
+    };
+  }
+
+  if (dates.closesAt) {
+    return {
+      ...dates.closesAt,
+      kind: "closesAt",
+      interpretation: "The page shows a closing/end date. This appears to be the relevant submission deadline."
+    };
+  }
+
+  return null;
+}
+
+function formatDetailDateLine(label, value) {
+  return value ? `${label}: ${value.rawValue || value.evidence || ""}` : "";
+}
+
+function buildAssignmentDetailChatAnswer(detail = {}) {
+  const title = detail.title || latestActiveAssignmentTitle || "this assignment";
+  const dates = getAssignmentDetailDates(detail);
+  const dateLines = [
+    formatDetailDateLine("Opens", dates.opensAt),
+    formatDetailDateLine("Due", dates.dueAt),
+    formatDetailDateLine("Closes", dates.closesAt),
+    formatDetailDateLine("Cut-off", dates.cutoffAt),
+    formatDetailDateLine("Time remaining", dates.timeRemaining)
+  ].filter(Boolean);
+  const likelyDeadline = getLikelyDeadline(detail);
+  const status = detail.status || {};
+  const instructions = detail.instructionsPreview
+    ? "I also found visible instruction text on the detail page."
+    : "I did not find a separate instruction preview.";
+  const statusLine = status.value && status.value !== "unknown"
+    ? `Visible submission status evidence suggests: ${status.label || status.value}.`
+    : "I could not confirm submission status from the visible text.";
+
+  const lines = [`I checked ${title}.`];
+
+  if (dateLines.length > 0) {
+    lines.push(`The visible Moodle page shows:\n- ${dateLines.join("\n- ")}`);
+  } else {
+    lines.push("I did not find a clear visible deadline/date field on the detail page.");
+  }
+
+  if (likelyDeadline) {
+    lines.push(likelyDeadline.interpretation);
+  } else if (dates.opensAt) {
+    lines.push("I found an opening date, but I did not find a clear deadline.");
+  }
+
+  lines.push(instructions);
+  lines.push(statusLine);
+  return lines.join("\n\n");
+}
+
 function buildAssignmentDetailLocalSummary(detail = {}, extraBullet = "") {
   const title = detail.title || latestActiveAssignmentTitle || "this assignment";
   const statusValue = detail.status?.value || "unknown";
-  const dateCountValue = (detail.dueDates || []).length;
+  const structuredDateCount = Object.values(getAssignmentDetailDates(detail)).filter(Boolean).length;
+  const dateCountValue = structuredDateCount || (detail.dueDates || []).length;
   const fileCountValue = (detail.files || []).length;
   const hasInstructions = Boolean(detail.instructionsPreview || detail.textPreview);
   const statusText = {
@@ -567,7 +673,7 @@ function isSafeMoodleDetailUrl(url) {
     return (
       parsed.protocol === "https:" &&
       parsed.hostname === "moodle.bgu.ac.il" &&
-      /\/mod\/(assign|quiz|workshop|lesson|forum)\/view\.php/i.test(parsed.pathname)
+      /\/mod\/(assign|quiz)\/view\.php/i.test(parsed.pathname)
     );
   } catch {
     return false;
@@ -1065,10 +1171,40 @@ async function handleCourseQueryFromChat(query) {
   }
 }
 
+function handleAssignmentDetailFollowup() {
+  const candidates = getInspectableHomeworkCandidates();
+
+  if (candidates.length === 0) {
+    const hasAnyHomework = (latestHomeworkCandidates || []).length > 0;
+    addChatMessage(
+      "assistant",
+      hasAnyHomework
+        ? "I found homework-like evidence, but I do not have an assignment or quiz detail link to inspect for a deadline."
+        : "I do not have a recent homework candidate yet. Ask me to check the course page first."
+    );
+    return;
+  }
+
+  if (candidates.length === 1) {
+    inspectAssignmentCandidate(candidates[0]);
+    return;
+  }
+
+  addChatMessage(
+    "assistant",
+    "I found multiple assignment/quiz candidates. Choose which one I should open and check for deadline evidence.",
+    candidates.slice(0, 6).map((candidate) => ({
+      label: candidate.title || "Assignment",
+      dataset: { chatAction: "inspectAssignment", candidateUrl: candidate.url }
+    }))
+  );
+}
+
 function getChatIntent(query) {
   const text = String(query || "").trim();
   if (!text) return "empty";
   if (JIMA_CHAT_AI_PATTERN.test(text)) return "ai";
+  if (JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN.test(text)) return "assignment_detail";
   if (JIMA_FOLLOWUP_DOWNLOAD_PATTERN.test(text)) return "download_files";
   if (JIMA_OPEN_FILE_PATTERN.test(text) || JIMA_FOLLOWUP_SHOW_FILES_PATTERN.test(text)) return "show_files";
   if (JIMA_CHAT_ANALYZE_PATTERN.test(text)) return "analyze_page";
@@ -1089,6 +1225,11 @@ async function routeChatQuery(query, mirrorUser = true) {
 
   if (intent === "ai") {
     showAiConfirmationInChat();
+    return;
+  }
+
+  if (intent === "assignment_detail") {
+    handleAssignmentDetailFollowup();
     return;
   }
 
@@ -1240,15 +1381,30 @@ function clearAssignmentDetail() {
   if (assignmentDetailFiles) clearList(assignmentDetailFiles);
 }
 
-function renderAssignmentDetailDates(dates) {
+function renderAssignmentDetailDates(dates, structuredDates = {}, diagnostics = {}) {
   clearList(assignmentDetailDates);
+  const structuredEntries = Object.values(structuredDates || {}).filter(Boolean);
 
-  if (!dates.length) {
+  if (!dates.length && structuredEntries.length === 0) {
     appendEmptyRow(assignmentDetailDates, "No clear due date evidence was visible on this detail page.");
+    const previewLines = diagnostics.detailLinesPreview || [];
+    if (previewLines.length > 0) {
+      appendEmptyRow(
+        assignmentDetailDates,
+        `No date labels matched. First extracted detail lines: ${previewLines.slice(0, 5).join(" | ")}`
+      );
+    }
     return;
   }
 
+  for (const date of structuredEntries) {
+    const item = createCandidateCard(date.label || "Date field", date.confidence || "High", "");
+    appendCandidateText(item, "candidate-evidence", date.evidence ? `Evidence: ${date.evidence}` : "");
+    assignmentDetailDates.appendChild(item);
+  }
+
   for (const date of dates.slice(0, 8)) {
+    if (structuredEntries.some((entry) => entry.evidence === date.surroundingText || entry.rawValue === date.rawDate)) continue;
     const item = createCandidateCard(date.rawDate || "Date clue", date.confidence, "");
     appendCandidateText(item, "candidate-evidence", date.surroundingText ? `Context: ${date.surroundingText}` : "");
     appendCandidateText(item, "candidate-uncertainty", date.uncertainty);
@@ -1309,10 +1465,10 @@ function renderAssignmentDetail(detail) {
   assignmentDetailInstructions.textContent = detail.instructionsPreview || detail.textPreview || "No instruction preview was visible.";
 
   renderAssignmentDetailStatus(detail.status || {});
-  renderAssignmentDetailDates(detail.dueDates || []);
+  renderAssignmentDetailDates(detail.dueDates || [], detail.dates || {}, detail.dateDiagnostics || {});
   renderAssignmentDetailFiles(detail.files || []);
   setSaveDetailTaskStatus("", "");
-  const answer = renderAssignmentDetailLocalAnswer(detail);
+  renderAssignmentDetailLocalAnswer(detail);
 
   const statusValue = detail.status?.value;
   const statusNote = statusValue === "not_submitted"
@@ -1323,7 +1479,7 @@ function renderAssignmentDetail(detail) {
 
   setAssignmentDetailStatus(`${statusNote} Detail-page inspection stayed local.`, "success");
   if (evidenceDetails) evidenceDetails.hidden = false;
-  addChatMessage("assistant", `${answer.summary} ${answer.bullets.join(" ")}`);
+  addChatMessage("assistant", buildAssignmentDetailChatAnswer(detail));
 }
 
 function renderDetections(detections = {}) {
@@ -1668,6 +1824,10 @@ function setDetailButtonsDisabled(isDisabled) {
 
 function inspectAssignmentDetail(candidateIndex) {
   const candidate = latestHomeworkCandidates[Number(candidateIndex)];
+  inspectAssignmentCandidate(candidate);
+}
+
+function inspectAssignmentCandidate(candidate) {
   if (!candidate) {
     setAssignmentDetailStatus("Choose a homework candidate first.", "error");
     return;
@@ -1988,6 +2148,13 @@ if (chatMessages) {
         addChatMessage("assistant", "I could not check this course.");
         setCourseCheckButtonsDisabled(false);
       });
+      return;
+    }
+
+    if (action === "inspectAssignment") {
+      const candidate = getInspectableHomeworkCandidates()
+        .find((item) => item.url === button.dataset.candidateUrl);
+      inspectAssignmentCandidate(candidate);
       return;
     }
 

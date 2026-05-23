@@ -73,6 +73,8 @@ The side panel also shows local answer summaries after page checks and assignmen
 
 The Jima side panel now uses a chat-first UX. Local chat routing is deterministic inside the extension: it can trigger current-page analysis, controlled saved-course checks, file display/download confirmation, and explicit AI confirmation. Chat routing does not call this backend or OpenAI unless the user confirms "Ask Jima with AI".
 
+Assignment deadline follow-ups are also local. When the user asks Jima to enter/check a recently detected homework item, the extension can open one selected Moodle assignment or quiz detail page and extract visible date labels such as open, due, closing, cut-off, and time remaining fields. This does not call this backend or OpenAI automatically.
+
 ## Endpoints
 
 ### GET /health
@@ -132,4 +134,5 @@ If `OPENAI_API_KEY` is missing, the endpoint returns a clear configuration error
 - Saved assignment detail evidence stays local in browser storage; detail file entries are metadata only.
 - Local answer summaries are generated in the extension and do not call this backend or OpenAI.
 - Chat-first routing is local and deterministic; file contents are still not read, parsed, uploaded, or sent here in this phase.
+- Assignment detail deadline extraction is local and based only on visible Moodle detail-page evidence.
 - CORS is not enabled because the extension routes local backend calls through its background service worker with a narrow localhost host permission.

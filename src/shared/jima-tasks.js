@@ -107,7 +107,8 @@ function createJimaTaskFromCandidate(candidate, pageContext = {}) {
 }
 
 function createJimaTaskFromDetail(detail, pageContext = {}, candidate = {}) {
-  const dueDate = Array.isArray(detail?.dueDates) ? detail.dueDates[0] : null;
+  const structuredDeadline = detail?.dates?.dueAt || detail?.dates?.cutoffAt || detail?.dates?.closesAt || null;
+  const dueDate = structuredDeadline || (Array.isArray(detail?.dueDates) ? detail.dueDates[0] : null);
   const status = detail?.status || {};
   const hasKnownStatus = status?.value && status.value !== "unknown";
   const now = new Date().toISOString();
@@ -118,7 +119,7 @@ function createJimaTaskFromDetail(detail, pageContext = {}, candidate = {}) {
     courseOrPage: pageContext.pageTitle || pageContext.documentTitle || "",
     sourceUrl: pageContext.currentUrl || pageContext.url || "",
     candidateUrl: candidate?.url || detail?.url || "",
-    dueDateRaw: dueDate?.rawDate || extractJimaTaskDueDate(`${detail?.title || ""} ${detail?.textPreview || ""}`),
+    dueDateRaw: dueDate?.rawValue || dueDate?.rawDate || extractJimaTaskDueDate(`${detail?.title || ""} ${detail?.textPreview || ""}`),
     evidence: candidate?.evidence || status?.evidence || detail?.instructionsPreview || "",
     confidence: candidate?.confidence || status?.confidence || "medium",
     detailUrl: detail?.url || candidate?.url || "",
@@ -126,8 +127,8 @@ function createJimaTaskFromDetail(detail, pageContext = {}, candidate = {}) {
     submissionStatusLabel: hasKnownStatus ? status.label : "",
     submissionEvidence: hasKnownStatus ? status.evidence : "",
     submissionConfidence: hasKnownStatus ? status.confidence : "",
-    detailDueDateRaw: dueDate?.rawDate || "",
-    detailDueDateEvidence: dueDate?.surroundingText || "",
+    detailDueDateRaw: dueDate?.rawValue || dueDate?.rawDate || "",
+    detailDueDateEvidence: dueDate?.evidence || dueDate?.surroundingText || "",
     instructionPreview: detail?.instructionsPreview || "",
     detailFiles: detail?.files || [],
     lastInspectedAt: now,

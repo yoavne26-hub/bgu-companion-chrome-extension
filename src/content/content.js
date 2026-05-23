@@ -43,7 +43,8 @@ const JIMA_FILE_RESOURCE_PATTERN = /(\.pdf|\.docx?|\.pptx?|\.xlsx?|\.csv|\.zip|\
 const JIMA_TASK_KEYWORD_PATTERN = /(assignment|homework|task|quiz|submission|submit|due|deadline|exercise|project|lab|exam|test|\u05de\u05d5\u05e2\u05d3 \u05d4\u05d2\u05e9\u05d4|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9 \u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d1\u05d5\u05d7\u05df|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05e4\u05e8\u05d5\u05d9\u05d9\u05e7\u05d8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e2\u05d1\u05d3\u05d4|\u05de\u05d1\u05d7\u05df)/i;
 const JIMA_DEADLINE_CONTEXT_PATTERN = /(due|deadline|submission|submit|available until|until|\u05de\u05d5\u05e2\u05d3|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05e2\u05d3|\u05ea\u05d0\u05e8\u05d9\u05da|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df)/i;
 const JIMA_DATE_PATTERN = /\b(?:\d{1,2}[/.]\d{1,2}[/.]\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4}|\d{4}-\d{1,2}-\d{1,2})\b/g;
-const JIMA_MOODLE_ACTIVITY_PATTERN = /\/mod\/(assign|quiz|workshop|lesson|forum|choice|feedback|resource|folder)\/view\.php/i;
+const JIMA_MOODLE_ACTIVITY_PATTERN = /\/mod\/(assign|quiz|workshop|lesson|forum|choice|feedback|resource|folder|url)\/view\.php/i;
+const JIMA_HOMEWORK_ACTIVITY_TYPES = new Set(["assign", "quiz", "workshop"]);
 const JIMA_ASSIGNMENT_DETAIL_TEXT_LIMIT = 6000;
 const JIMA_ASSIGNMENT_INSTRUCTIONS_LIMIT = 1400;
 const JIMA_STATUS_SNIPPET_LIMIT = 320;
@@ -51,6 +52,44 @@ const JIMA_NOT_SUBMITTED_PATTERN = /(not submitted|no submission|nothing has bee
 const JIMA_SUBMITTED_PATTERN = /(submitted for grading|\bsubmitted\b|submission status\s+submitted|\u05d4\u05d5\u05d2\u05e9|\u05e0\u05e9\u05dc\u05d7 \u05dc\u05d1\u05d3\u05d9\u05e7\u05d4)/i;
 const JIMA_DRAFT_PATTERN = /(\bdraft\b|draft submission|\u05d8\u05d9\u05d5\u05d8\u05d4)/i;
 const JIMA_STATUS_CONTEXT_PATTERN = /(submission status|grading status|last modified|due date|time remaining|status|\u05de\u05e6\u05d1 \u05d4\u05d2\u05e9\u05d4|\u05de\u05e6\u05d1|\u05e6\u05d9\u05d5\u05df|\u05e0\u05d1\u05d3\u05e7|\u05d6\u05de\u05df \u05e9\u05e0\u05d5\u05ea\u05e8|\u05de\u05d5\u05e2\u05d3 \u05d4\u05d2\u05e9\u05d4|\u05ea\u05d0\u05e8\u05d9\u05da \u05d4\u05d2\u05e9\u05d4)/i;
+const JIMA_DATE_LABELS = Object.freeze({
+  opensAt: /(opened|opens|open date|allow submissions from|\u05e0\u05e4\u05ea\u05d7|\u05e0\u05e4\u05ea\u05d7\u05d4|\u05de\u05ea\u05d7\u05d9\u05dc|\u05de\u05ea\u05d7\u05d9\u05dc\u05d4|\u05de\u05d5\u05e2\u05d3 \u05e4\u05ea\u05d9\u05d7\u05d4)/i,
+  closesAt: /(closing date|close date|closes|ends|end date|\u05de\u05e1\u05ea\u05d9\u05d9\u05dd|\u05de\u05e1\u05ea\u05d9\u05d9\u05de\u05ea|\u05e0\u05e1\u05d2\u05e8|\u05e0\u05e1\u05d2\u05e8\u05ea|\u05de\u05d5\u05e2\u05d3 \u05e1\u05d9\u05d5\u05dd)/i,
+  dueAt: /(due date|deadline|submission date|\u05de\u05d5\u05e2\u05d3 \u05d4\u05d2\u05e9\u05d4|\u05ea\u05d0\u05e8\u05d9\u05da \u05d4\u05d2\u05e9\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df)/i,
+  cutoffAt: /(cut-?off date|final deadline)/i,
+  timeRemaining: /(time remaining|\u05d6\u05de\u05df \u05e9\u05e0\u05d5\u05ea\u05e8)/i
+});
+const JIMA_DATE_LABEL_TEXT = [
+  "Opened",
+  "Opens",
+  "Open date",
+  "Allow submissions from",
+  "Due date",
+  "Closing date",
+  "Close date",
+  "Cut-?off date",
+  "Time remaining",
+  "Deadline",
+  "\\u05e0\\u05e4\\u05ea\\u05d7",
+  "\\u05e0\\u05e4\\u05ea\\u05d7\\u05d4",
+  "\\u05de\\u05ea\\u05d7\\u05d9\\u05dc",
+  "\\u05de\\u05ea\\u05d7\\u05d9\\u05dc\\u05d4",
+  "\\u05de\\u05d5\\u05e2\\u05d3 \\u05e4\\u05ea\\u05d9\\u05d7\\u05d4",
+  "\\u05de\\u05e1\\u05ea\\u05d9\\u05d9\\u05dd",
+  "\\u05de\\u05e1\\u05ea\\u05d9\\u05d9\\u05de\\u05ea",
+  "\\u05e0\\u05e1\\u05d2\\u05e8",
+  "\\u05e0\\u05e1\\u05d2\\u05e8\\u05ea",
+  "\\u05de\\u05d5\\u05e2\\u05d3 \\u05e1\\u05d9\\u05d5\\u05dd",
+  "\\u05de\\u05d5\\u05e2\\u05d3 \\u05d4\\u05d2\\u05e9\\u05d4",
+  "\\u05ea\\u05d0\\u05e8\\u05d9\\u05da \\u05d4\\u05d2\\u05e9\\u05d4",
+  "\\u05d3\\u05d3\\u05dc\\u05d9\\u05d9\\u05df",
+  "\\u05d6\\u05de\\u05df \\u05e9\\u05e0\\u05d5\\u05ea\\u05e8"
+].join("|");
+const JIMA_DATE_LABEL_LINE_PATTERN = new RegExp(`^\\s*(${JIMA_DATE_LABEL_TEXT})\\s*[:\\uFF1A-]?\\s*(.+)$`, "i");
+const JIMA_DATE_LABEL_ONLY_PATTERN = new RegExp(`^\\s*(${JIMA_DATE_LABEL_TEXT})\\s*[:\\uFF1A-]?\\s*$`, "i");
+const JIMA_DATE_LABEL_LOOKAHEAD_PATTERN = new RegExp(`\\s+(?=(?:${JIMA_DATE_LABEL_TEXT})\\s*[:\\uFF1A-]?)`, "gi");
+const JIMA_HEBREW_MONTH_PATTERN = /(\u05d9\u05e0\u05d5\u05d0\u05e8|\u05e4\u05d1\u05e8\u05d5\u05d0\u05e8|\u05de\u05e8\u05e5|\u05d0\u05e4\u05e8\u05d9\u05dc|\u05de\u05d0\u05d9|\u05d9\u05d5\u05e0\u05d9|\u05d9\u05d5\u05dc\u05d9|\u05d0\u05d5\u05d2\u05d5\u05e1\u05d8|\u05e1\u05e4\u05d8\u05de\u05d1\u05e8|\u05d0\u05d5\u05e7\u05d8\u05d5\u05d1\u05e8|\u05e0\u05d5\u05d1\u05de\u05d1\u05e8|\u05d3\u05e6\u05de\u05d1\u05e8)/i;
+const JIMA_TEXTUAL_DATE_PATTERN = new RegExp(`(\\d{1,2}\\s+${JIMA_HEBREW_MONTH_PATTERN.source}\\s+\\d{4}|\\b\\d{1,2}\\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}\\b|\\b(?:AM|PM)\\s*\\d{1,2}:\\d{2}\\b|\\b\\d{1,2}:\\d{2}\\s*(?:AM|PM)\\b)`, "i");
 
 function compactJimaText(value) {
   return (value || "").replace(/\s+/g, " ").trim();
@@ -74,9 +113,66 @@ function addJimaUniqueCandidate(candidates, seen, key, candidate, limit) {
   candidates.push(candidate);
 }
 
+function normalizeJimaDetectionTitle(value) {
+  return compactJimaText(value).toLowerCase();
+}
+
 function getJimaActivityType(url) {
+  if (/pluginfile\.php/i.test(url || "")) return "file";
   const match = (url || "").match(JIMA_MOODLE_ACTIVITY_PATTERN);
   return match?.[1] || "";
+}
+
+function getJimaActivityLabel(activityType) {
+  return {
+    assign: "assignment",
+    quiz: "quiz",
+    forum: "forum",
+    resource: "resource",
+    folder: "folder",
+    url: "external link",
+    file: "file"
+  }[activityType] || activityType || "activity";
+}
+
+function getJimaHomeworkCandidateRank(candidate) {
+  const activityType = candidate.activityType || candidate.type || "";
+  if (activityType === "assign" || candidate.type === "assignment") return 100;
+  if (activityType === "quiz" || candidate.type === "quiz") return 90;
+  if (activityType === "workshop") return 80;
+  if (JIMA_TASK_KEYWORD_PATTERN.test(`${candidate.title || ""} ${candidate.evidence || ""}`)) return 50;
+  return 10;
+}
+
+function dedupeJimaHomeworkCandidates(candidates) {
+  const byTitle = new Map();
+
+  for (const candidate of candidates) {
+    const key = normalizeJimaDetectionTitle(candidate.title || candidate.evidence || candidate.url);
+    if (!key) continue;
+
+    const existingList = byTitle.get(key) || [];
+    const candidateRank = getJimaHomeworkCandidateRank(candidate);
+    const existingRank = Math.max(0, ...existingList.map(getJimaHomeworkCandidateRank));
+
+    if (existingList.length === 0 || candidateRank > existingRank) {
+      byTitle.set(key, [candidate]);
+      continue;
+    }
+
+    if (
+      candidateRank === existingRank &&
+      !existingList.some((existing) => existing.url === candidate.url)
+    ) {
+      existingList.push(candidate);
+      byTitle.set(key, existingList);
+    }
+  }
+
+  return Array.from(byTitle.values())
+    .flat()
+    .sort((a, b) => getJimaHomeworkCandidateRank(b) - getJimaHomeworkCandidateRank(a))
+    .slice(0, JIMA_DETECTION_LIMITS.homeworkCandidates);
 }
 
 function getJimaFileType(link) {
@@ -125,9 +221,11 @@ function detectJimaHomeworkCandidates(pageContext) {
   for (const link of pageContext.links || []) {
     const activityType = getJimaActivityType(link.url);
     const evidenceText = `${link.text || ""} ${link.url || ""}`;
-    if (!activityType && !JIMA_TASK_KEYWORD_PATTERN.test(evidenceText)) continue;
+    const hasTaskKeyword = JIMA_TASK_KEYWORD_PATTERN.test(evidenceText);
+    const isStrongActivity = JIMA_HOMEWORK_ACTIVITY_TYPES.has(activityType);
+    if (!isStrongActivity && !hasTaskKeyword) continue;
 
-    const isStrongActivity = /^(assign|quiz|workshop)$/.test(activityType);
+    const activityLabel = getJimaActivityLabel(activityType);
     const confidence = isStrongActivity ? "High" : activityType ? "Medium" : "Low";
 
     addJimaUniqueCandidate(
@@ -136,11 +234,14 @@ function detectJimaHomeworkCandidates(pageContext) {
       `link:${link.url || link.text}`,
       {
         title: capJimaText(link.text || link.url || "Possible Moodle activity", 160),
-        type: activityType || "keyword",
+        type: activityLabel || "keyword",
+        activityType,
         url: link.url,
         evidence: capJimaText(evidenceText, JIMA_DETECTION_LIMITS.evidence),
         confidence,
-        uncertainty: "Rule-based candidate. Confirm the exact requirement and deadline on Moodle."
+        uncertainty: isStrongActivity
+          ? "Moodle activity link. Open the detail page to confirm the exact requirement and deadline."
+          : "Task-like wording was visible, but this may not be an assignment activity."
       },
       JIMA_DETECTION_LIMITS.homeworkCandidates
     );
@@ -192,7 +293,7 @@ function detectJimaHomeworkCandidates(pageContext) {
     );
   }
 
-  return candidates;
+  return dedupeJimaHomeworkCandidates(candidates);
 }
 
 function detectJimaDeadlineCandidates(pageContext) {
@@ -301,6 +402,212 @@ function detectJimaSubmissionStatus(text) {
     confidence: "Low",
     uncertainty: "I cannot confirm submission status from the visible text on this detail page."
   };
+}
+
+function createEmptyJimaStructuredDates() {
+  return {
+    opensAt: null,
+    closesAt: null,
+    dueAt: null,
+    cutoffAt: null,
+    timeRemaining: null
+  };
+}
+
+function getJimaDateFieldKey(label) {
+  const normalizedLabel = compactJimaText(label);
+  for (const [key, pattern] of Object.entries(JIMA_DATE_LABELS)) {
+    if (pattern.test(normalizedLabel)) return key;
+  }
+  return "";
+}
+
+function addJimaStructuredDate(dates, label, rawValue) {
+  const key = getJimaDateFieldKey(label);
+  const value = capJimaText(rawValue, 220);
+  if (!key || !value || dates[key]) return;
+
+  const cleanLabel = capJimaText(label, 80);
+  dates[key] = {
+    label: cleanLabel,
+    rawValue: value,
+    evidence: `${cleanLabel}: ${value}`,
+    confidence: "high"
+  };
+}
+
+function getJimaDirectElementText(element) {
+  return capJimaText(element?.textContent || "", 260);
+}
+
+function splitJimaDetailTextIntoLines(text) {
+  const compactText = compactJimaText(text);
+  if (!compactText) return [];
+
+  return compactText
+    .replace(JIMA_DATE_LABEL_LOOKAHEAD_PATTERN, "\n")
+    .split(/\n+/)
+    .map((line) => capJimaText(line, 360))
+    .filter(Boolean);
+}
+
+function addJimaDetailTextLine(lines, seen, text, limit = 120) {
+  if (lines.length >= limit) return;
+
+  for (const line of splitJimaDetailTextIntoLines(text)) {
+    const key = normalizeJimaDetectionTitle(line);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    lines.push(line);
+    if (lines.length >= limit) break;
+  }
+}
+
+function getJimaAssignmentDetailTextLines() {
+  const root = getJimaMainRoot();
+  if (!root) return [];
+
+  const lines = [];
+  const seen = new Set();
+  const detailSelectors = [
+    ".activity-information",
+    ".activity-dates",
+    ".submissionstatustable",
+    ".generaltable",
+    ".description",
+    ".activity-description",
+    ".box",
+    ".no-overflow",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "p",
+    "li",
+    "dt",
+    "dd",
+    "tr"
+  ].join(", ");
+
+  for (const element of Array.from(root.querySelectorAll(detailSelectors))) {
+    if (!isJimaVisibleElement(element) || isJimaSkippedTextParent(element)) continue;
+    addJimaDetailTextLine(lines, seen, element.textContent);
+  }
+
+  if (lines.length < 4) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode() && lines.length < 120) {
+      const node = walker.currentNode;
+      const parent = node.parentElement;
+      if (!parent || isJimaSkippedTextParent(parent) || !isJimaVisibleElement(parent)) continue;
+      addJimaDetailTextLine(lines, seen, node.nodeValue);
+    }
+  }
+
+  return lines;
+}
+
+function hasJimaDateLikeValue(value) {
+  JIMA_DATE_PATTERN.lastIndex = 0;
+  return (
+    JIMA_DATE_PATTERN.test(value) ||
+    JIMA_TEXTUAL_DATE_PATTERN.test(value) ||
+    /(time remaining|remaining|\u05d6\u05de\u05df \u05e9\u05e0\u05d5\u05ea\u05e8)/i.test(value)
+  );
+}
+
+function collectJimaStructuredDatesFromDom() {
+  const dates = createEmptyJimaStructuredDates();
+  const root = getJimaMainRoot();
+  if (!root) return dates;
+
+  for (const term of Array.from(root.querySelectorAll("dt"))) {
+    if (!isJimaVisibleElement(term)) continue;
+    const valueElement = term.nextElementSibling;
+    if (!valueElement || !isJimaVisibleElement(valueElement)) continue;
+    addJimaStructuredDate(dates, getJimaDirectElementText(term), getJimaDirectElementText(valueElement));
+  }
+
+  for (const row of Array.from(root.querySelectorAll("tr"))) {
+    if (!isJimaVisibleElement(row)) continue;
+    const cells = Array.from(row.children).filter(isJimaVisibleElement);
+    if (cells.length < 2) continue;
+    addJimaStructuredDate(dates, getJimaDirectElementText(cells[0]), getJimaDirectElementText(cells.slice(1).map((cell) => cell.textContent).join(" ")));
+  }
+
+  for (const item of Array.from(root.querySelectorAll(".activity-information li, .activity-dates li, .description .row, .generaltable .cell"))) {
+    if (!isJimaVisibleElement(item)) continue;
+    const text = getJimaDirectElementText(item);
+    const splitMatch = text.match(/^(.{2,80}?)[\s:：-]+(.{3,220})$/);
+    if (splitMatch) {
+      addJimaStructuredDate(dates, splitMatch[1], splitMatch[2]);
+    }
+  }
+
+  return dates;
+}
+
+function collectJimaStructuredDatesFromLines(lines) {
+  const dates = createEmptyJimaStructuredDates();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const lineMatch = line.match(JIMA_DATE_LABEL_LINE_PATTERN);
+    if (lineMatch) {
+      addJimaStructuredDate(dates, lineMatch[1], lineMatch[2]);
+      continue;
+    }
+
+    const labelOnlyMatch = line.match(JIMA_DATE_LABEL_ONLY_PATTERN);
+    const nextLine = lines[index + 1] || "";
+    if (labelOnlyMatch && nextLine && hasJimaDateLikeValue(nextLine)) {
+      addJimaStructuredDate(dates, labelOnlyMatch[1], nextLine);
+    }
+  }
+
+  return dates;
+}
+
+function mergeJimaStructuredDates(primary, fallback) {
+  const dates = { ...primary };
+  for (const key of Object.keys(dates)) {
+    if (!dates[key] && fallback[key]) dates[key] = fallback[key];
+  }
+  return dates;
+}
+
+function collectJimaStructuredDatesFromText(text) {
+  const dates = createEmptyJimaStructuredDates();
+  const compactText = compactJimaText(text);
+  const labelPattern = "(Opened|Opens|Open date|Allow submissions from|Due date|Closing date|Close date|Cut-?off date|Time remaining|Deadline|\\u05e0\\u05e4\\u05ea\\u05d7|\\u05e0\\u05e4\\u05ea\\u05d7\\u05d4|\\u05de\\u05ea\\u05d7\\u05d9\\u05dc|\\u05de\\u05ea\\u05d7\\u05d9\\u05dc\\u05d4|\\u05de\\u05d5\\u05e2\\u05d3 \\u05e4\\u05ea\\u05d9\\u05d7\\u05d4|\\u05de\\u05e1\\u05ea\\u05d9\\u05d9\\u05dd|\\u05de\\u05e1\\u05ea\\u05d9\\u05d9\\u05de\\u05ea|\\u05e0\\u05e1\\u05d2\\u05e8|\\u05e0\\u05e1\\u05d2\\u05e8\\u05ea|\\u05de\\u05d5\\u05e2\\u05d3 \\u05e1\\u05d9\\u05d5\\u05dd|\\u05de\\u05d5\\u05e2\\u05d3 \\u05d4\\u05d2\\u05e9\\u05d4|\\u05ea\\u05d0\\u05e8\\u05d9\\u05da \\u05d4\\u05d2\\u05e9\\u05d4|\\u05d3\\u05d3\\u05dc\\u05d9\\u05d9\\u05df|\\u05d6\\u05de\\u05df \\u05e9\\u05e0\\u05d5\\u05ea\\u05e8)";
+  const regex = new RegExp(`${labelPattern}\\s*[:：-]?\\s*(.{3,180}?)(?=\\s+${labelPattern}\\s*[:：-]?|$)`, "gi");
+  let match;
+  while ((match = regex.exec(compactText))) {
+    addJimaStructuredDate(dates, match[1], match[2]);
+  }
+  return dates;
+}
+
+function collectJimaStructuredDatesFromCompactText(text) {
+  const dates = createEmptyJimaStructuredDates();
+  const compactText = compactJimaText(text);
+  const regex = new RegExp(`(${JIMA_DATE_LABEL_TEXT})\\s*[:\\uFF1A-]?\\s*(.{3,220}?)(?=\\s+(?:${JIMA_DATE_LABEL_TEXT})\\s*[:\\uFF1A-]?|$)`, "gi");
+  let match;
+  while ((match = regex.exec(compactText))) {
+    addJimaStructuredDate(dates, match[1], match[2]);
+  }
+  return dates;
+}
+
+function structuredJimaDatesToCandidates(structuredDates) {
+  return Object.values(structuredDates || {})
+    .filter(Boolean)
+    .map((date) => ({
+      rawDate: date.rawValue,
+      surroundingText: date.evidence,
+      confidence: date.confidence || "High",
+      uncertainty: ""
+    }));
 }
 
 function getJimaInstructionPreview(text) {
@@ -469,8 +776,18 @@ function extractJimaAssignmentDetail() {
   const links = getJimaLinks();
   const fileCandidates = detectJimaFileCandidates(links);
   const primaryHeading = headings.find((heading) => heading.level === "h1") || headings[0];
-  const visibleText = getJimaVisibleTextPreview();
+  const detailLines = getJimaAssignmentDetailTextLines();
+  const visibleText = detailLines.length > 0
+    ? detailLines.join("\n")
+    : getJimaVisibleTextPreview();
   const textPreview = capJimaText(visibleText, JIMA_ASSIGNMENT_DETAIL_TEXT_LIMIT);
+  const structuredDates = mergeJimaStructuredDates(
+    mergeJimaStructuredDates(
+      collectJimaStructuredDatesFromLines(detailLines),
+      collectJimaStructuredDatesFromDom()
+    ),
+    collectJimaStructuredDatesFromCompactText(textPreview)
+  );
 
   if (!textPreview) {
     return {
@@ -498,7 +815,15 @@ function extractJimaAssignmentDetail() {
       title: detailContext.pageTitle,
       url: detailContext.currentUrl,
       status: detectJimaSubmissionStatus(textPreview),
-      dueDates: detectJimaDeadlineCandidates(detailContext),
+      dates: structuredDates,
+      dateDiagnostics: {
+        matchedDateLabels: Object.values(structuredDates).filter(Boolean).length,
+        detailLinesPreview: detailLines.slice(0, 12)
+      },
+      dueDates: [
+        ...structuredJimaDatesToCandidates(structuredDates),
+        ...detectJimaDeadlineCandidates(detailContext)
+      ].slice(0, JIMA_DETECTION_LIMITS.deadlineCandidates),
       files: fileCandidates,
       instructionsPreview: getJimaInstructionPreview(textPreview),
       textPreview,

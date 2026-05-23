@@ -83,6 +83,13 @@ function validateJimaAssignmentDetailUrl(url) {
     };
   }
 
+  if (!/\/moodle\/mod\/(assign|quiz)\/view\.php$/i.test(parsed.pathname)) {
+    return {
+      ok: false,
+      error: "Jima can inspect assignment or quiz detail pages for deadlines in this phase."
+    };
+  }
+
   return {
     ok: true,
     url: parsed.href

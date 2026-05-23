@@ -135,6 +135,7 @@ h1 {
   font-size: 13px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .chat-message.assistant {
