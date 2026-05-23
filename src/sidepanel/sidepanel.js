@@ -1467,7 +1467,7 @@ function showFilesFromChat(query, mode = "show") {
         ? `I found ${requestedLabel ? `${requestedLabel}: ` : ""}"${getFileDisplayName(files[0])}". I can download it after you confirm. I have not read the file contents.`
         : `I found ${files.length} matching file candidates. Select what to download. I have not read the file contents.`,
       [
-        files.length === 1 ? { label: "Download", dataset: { chatAction: "downloadSingle", fileIndex: 0 } } : null,
+        files.length === 1 ? { label: "Confirm download", dataset: { chatAction: "downloadSingle", fileIndex: 0 } } : null,
         { label: "Cancel", dataset: { chatAction: "cancel" } }
       ]
     );
@@ -1481,10 +1481,10 @@ function showFilesFromChat(query, mode = "show") {
       : `I found ${describeFileMix(files)} from ${fileSource.label}. I have not read the file contents. Choose one to open or download.`,
     [
       files.length === 1
-        ? { label: "Open file link", dataset: { chatAction: "openFile", fileIndex: 0 } }
+        ? { label: "Open file", dataset: { chatAction: "openFile", fileIndex: 0 } }
         : null,
       files.length === 1
-        ? { label: "Download", dataset: { chatAction: "downloadSingle", fileIndex: 0 } }
+        ? { label: "Download file", dataset: { chatAction: "downloadFiles", query } }
         : { label: "Prepare download", dataset: { chatAction: "downloadFiles", query } },
       { label: "Analyze selected file", dataset: { chatAction: "showFileAnalysis", question: query } }
     ]
@@ -1533,10 +1533,10 @@ function showFileReadLimitation(query) {
     const file = files[0];
     addChatMessage(
       "assistant",
-      `I found "${getFileDisplayName(file)}". ${getTitleOnlyHint(file)} I have not read the file contents yet. I can open/download it, or you can choose the downloaded local file for explicit file analysis.`,
+      `I found "${getFileDisplayName(file)}". ${getTitleOnlyHint(file)} I have not read its contents yet. I can download/open it, or you can analyze the downloaded file.`,
       [
-        { label: "Open file link", dataset: { chatAction: "openFile", fileIndex: 0 } },
-        { label: "Download", dataset: { chatAction: "downloadSingle", fileIndex: 0 } },
+        { label: "Download file", dataset: { chatAction: "downloadFiles", query } },
+        { label: "Open file", dataset: { chatAction: "openFile", fileIndex: 0 } },
         { label: "Analyze selected file", dataset: { chatAction: "showFileAnalysis", question: query } }
       ]
     );
@@ -1568,6 +1568,10 @@ function openFileAnalysisPanel(question = "") {
     "Choose the downloaded local file first. Nothing is uploaded until you click Analyze selected file.",
     "active"
   );
+
+  window.setTimeout(() => {
+    fileAnalysisInput?.focus();
+  }, 80);
 }
 
 function getSelectedAnalysisFile() {
@@ -2595,6 +2599,18 @@ function renderScopedDownloadResult(response, scope = "page") {
   const message = parts.length
     ? `${parts.join(", ")}. Chrome is handling started downloads.${details.length ? ` ${details.join(" ")}` : ""}`
     : response?.error || "No downloads were started.";
+
+  if (started > 0) {
+    addChatMessage(
+      "assistant",
+      "Download started. After it finishes, choose the downloaded file in Analyze selected file if you want me to summarize its contents.",
+      [
+        { label: "Analyze selected file", dataset: { chatAction: "showFileAnalysis" } }
+      ],
+      "result"
+    );
+    openFileAnalysisPanel();
+  }
 
   if (scope === "detail") {
     setAssignmentDetailDownloadStatus(message, started > 0 && failed === 0 ? "success" : "error");

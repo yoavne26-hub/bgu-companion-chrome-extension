@@ -84,6 +84,8 @@ Jima Chat V2 keeps the first side-panel experience as one chat/search surface wi
 - AI mode does not override local tools. File download/show/open requests, current-page scans, saved-course checks, and assignment deadline follow-ups stay local first.
 - The extension can suggest tools/actions in chat, but sensitive actions such as AI requests and downloads still require a separate user click.
 - File links can be listed, opened by the browser, or downloaded after confirmation. Moodle files are not read or uploaded automatically.
+- When a student asks what a Moodle file is about, the extension first explains that Jima has only seen the file title/link. It then offers download/open actions and expands the explicit selected-file analysis panel when requested.
+- After a download starts, the extension guides the student to manually choose the downloaded file in "Analyze selected file" if they want a content summary.
 - Precise file references such as "lecture 5", "הרצאה 5", or "5 הרצאה" are matched locally against visible file/resource titles. Jima remembers the last referenced file during the side-panel session for follow-ups like "download it" or "can you read it".
 - File-content analysis is explicit only: the user manually selects a local TXT, PDF, or DOCX file, then the backend extracts text and supplies that text to the model. PPTX is not supported yet.
 
