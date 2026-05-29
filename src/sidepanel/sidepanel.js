@@ -356,7 +356,7 @@ function getChatNoticeKey(role, text, type) {
   const isNotice = (
     type === "error" ||
     type === "confirmation" ||
-    /backend|openai_api_key|api key|moodle page|choose .*file|unsupported file|too large|already waiting|no file|could not reach|not running|quota|billing|invalid response/.test(normalized)
+    /backend|openai_api_key|api key|moodle page|open a bgu moodle page|choose .*file|choose .*downloaded|unsupported file|file type is not supported|too large|already waiting|no file|could not reach|not running|quota|billing|invalid response/.test(normalized)
   );
   return isNotice ? `${type}:${normalized.slice(0, 180)}` : "";
 }

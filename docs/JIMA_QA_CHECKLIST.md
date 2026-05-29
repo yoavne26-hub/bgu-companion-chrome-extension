@@ -16,11 +16,14 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 ## Jima Side Panel
 
 - [ ] Open Jima from the popup.
+- [ ] Confirm the Jima avatar appears from `assets/icons/jima-avatar.png`.
+- [ ] Confirm the default greeting says `Ready when you are, Boss.`
 - [ ] Confirm the chat-first side panel is the first visible experience.
 - [ ] Confirm Local mode is selected by default.
 - [ ] Toggle AI mode and confirm local tool actions still remain local.
 - [ ] Confirm chat input supports Enter to send and Shift+Enter for a newline.
 - [ ] Confirm the main chat input, mode buttons, and action buttons are keyboard accessible.
+- [ ] Confirm the README references the same avatar path and does not contain broken source-placeholder text.
 
 ## Local Moodle Scan
 
@@ -84,8 +87,10 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Confirm the chat-native file analysis card appears.
 - [ ] Choose a TXT file and confirm no upload happens before clicking `Analyze file`.
 - [ ] Click `Analyze file` and confirm backend analysis result appears in chat.
+- [ ] Repeat with an MD file.
 - [ ] Repeat with a text-based PDF.
 - [ ] Repeat with a DOCX.
+- [ ] Repeat with a DOC file if a sample is available.
 - [ ] Try an unsupported file type and confirm a friendly error appears.
 - [ ] Try a file larger than 10MB and confirm a friendly size error appears.
 - [ ] Try a scanned/image-only PDF and confirm empty extraction is explained honestly.
@@ -99,6 +104,8 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Run a local Moodle scan.
 - [ ] Ask: `summarize this page with AI`.
 - [ ] Confirm Jima shows an AI confirmation before sending context.
+- [ ] Toggle AI mode and ask: `analyze עבודת בית 2`.
+- [ ] Confirm Jima either routes to matching local file/homework actions first, or shows AI confirmation with the exact question text.
 - [ ] Confirm backend request is sent only after clicking continue.
 - [ ] Stop the backend and retry AI analysis.
 - [ ] Confirm Jima says: `The local Jima backend is not running. Start it with cd backend && npm start.`
@@ -111,6 +118,7 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Confirm no backend/OpenAI request occurs during local scan.
 - [ ] Confirm no backend/OpenAI request occurs during course lookup.
 - [ ] Confirm no backend/OpenAI request occurs during assignment detail inspection.
+- [ ] Toggle AI mode and ask `download הרצאה 5`; confirm the local download confirmation flow still wins.
 - [ ] Confirm no file download starts before explicit confirmation.
 - [ ] Confirm no Moodle file content is fetched silently.
 - [ ] Confirm no downloaded local file is read by filename or path.

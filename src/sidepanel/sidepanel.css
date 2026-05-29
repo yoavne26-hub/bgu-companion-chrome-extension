@@ -44,8 +44,9 @@
 
 html,
 body {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 body {
@@ -69,6 +70,7 @@ button,
 textarea,
 input {
   font: inherit;
+  max-width: 100%;
 }
 
 button {
@@ -88,6 +90,7 @@ button {
   top: var(--space-3);
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -104,6 +107,7 @@ button {
 .assistant-identity {
   display: flex;
   align-items: center;
+  flex: 1 1 188px;
   min-width: 0;
   gap: var(--space-3);
 }
@@ -163,6 +167,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex: 1 1 220px;
   gap: var(--space-2);
   min-width: 0;
   flex-wrap: wrap;
@@ -226,6 +231,7 @@ h1 {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
+  min-width: 0;
   max-width: min(92%, 620px);
   border: 1px solid rgba(215, 227, 243, 0.92);
   border-radius: 20px;
@@ -296,6 +302,7 @@ h1 {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: 10px;
+  max-width: 100%;
 }
 
 .chat-action-btn,
@@ -303,6 +310,7 @@ h1 {
 .quiet-action,
 .saved-task-actions button,
 .saved-task-actions a {
+  max-width: 100%;
   border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 999px;
   padding: 8px 11px;
@@ -312,6 +320,7 @@ h1 {
   font-weight: 800;
   line-height: 1.2;
   text-decoration: none;
+  white-space: normal;
   cursor: pointer;
   box-shadow: 0 5px 12px rgba(15, 23, 42, 0.05);
   transition: transform 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
@@ -370,6 +379,7 @@ h1 {
 
 .mode-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
   min-width: 0;
@@ -673,6 +683,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  width: fit-content;
   max-width: min(92%, 540px);
   margin-left: 36px;
   padding: 14px;
@@ -688,6 +699,7 @@ h1 {
 
 .file-analysis-card-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
@@ -1111,6 +1123,11 @@ summary:focus-visible,
     top: 10px;
   }
 
+  .assistant-identity,
+  .header-controls {
+    flex-basis: 100%;
+  }
+
   .header-controls {
     justify-content: flex-start;
   }
@@ -1128,6 +1145,7 @@ summary:focus-visible,
   }
 
   .file-analysis-card {
+    width: 100%;
     max-width: 100%;
     margin-left: 0;
   }

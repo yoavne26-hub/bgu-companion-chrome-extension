@@ -73,7 +73,12 @@
             </div>
 
             <label id="fileAnalysisDropzone" class="file-analysis-dropzone" for="fileAnalysisInput" tabindex="0">
-              <input id="fileAnalysisInput" type="file" accept=".txt,.md,.pdf,.docx,.doc" />
+              <input
+                id="fileAnalysisInput"
+                type="file"
+                accept=".txt,.md,.pdf,.docx,.doc"
+                aria-label="Choose TXT, MD, PDF, DOCX, or DOC file for analysis"
+              />
               <span class="dropzone-title">Choose file or drop it here</span>
               <span class="dropzone-meta">TXT, MD, PDF, DOCX, DOC up to 10MB</span>
             </label>
