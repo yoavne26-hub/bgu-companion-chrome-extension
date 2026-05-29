@@ -135,6 +135,7 @@ function parseStructuredOutput(response) {
 export async function analyzeJimaContext(payload) {
   const openai = getOpenAIClient();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+  const userQuestion = String(payload.userQuestion || payload.originalUserMessage || "").trim();
 
   const response = await openai.responses.create({
     model,
@@ -148,9 +149,20 @@ export async function analyzeJimaContext(payload) {
       {
         role: "user",
         content: JSON.stringify({
+          instruction: "Answer the user's exact question first. Use recent chat only to resolve references. Do not give a generic page summary unless the user asked for one.",
+          source: payload.source || "bgu-companion-extension",
+          mode: payload.mode || "explicit_user_ai_request",
+          userQuestion,
+          originalUserMessage: payload.originalUserMessage || userQuestion,
+          recentChatMessages: payload.recentChatMessages || [],
+          localSummary: payload.localSummary || "",
+          course: payload.course || null,
           pageContext: payload.pageContext,
           detections: payload.detections || {},
-          userQuestion: payload.userQuestion || ""
+          assignmentDetail: payload.assignmentDetail || null,
+          lastReferencedFile: payload.lastReferencedFile || null,
+          lastFileAnalysisSummary: payload.lastFileAnalysisSummary || null,
+          privacyNote: payload.privacyNote || "User explicitly confirmed AI analysis. File contents are not included unless selected-file analysis supplied extracted text."
         })
       }
     ],

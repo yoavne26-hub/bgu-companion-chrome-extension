@@ -86,7 +86,7 @@ const fileAnalysisStatus = document.getElementById("fileAnalysisStatus");
 const JIMA_FILE_ANALYSIS_URL = "http://localhost:3000/api/jima/analyze-file";
 const JIMA_FILE_ANALYSIS_MAX_BYTES = 10 * 1024 * 1024;
 const JIMA_FILE_ANALYSIS_TIMEOUT_MS = 60000;
-const JIMA_FILE_ANALYSIS_TYPES = new Set(["txt", "pdf", "docx"]);
+const JIMA_FILE_ANALYSIS_TYPES = new Set(["txt", "md", "pdf", "docx", "doc"]);
 const JIMA_NOTICE_DEDUPE_MS = 30000;
 
 let latestPageContext = null;
@@ -121,6 +121,7 @@ const jimaSessionMemory = {
   lastFileIntent: "",
   lastFileActionOffered: "",
   lastFileSourcePage: "",
+  lastFileAnalysisSummary: null,
   latestAiResponse: null
 };
 
@@ -409,16 +410,35 @@ function runJimaTool(name, payload) {
 
 function buildCurrentAiContextBundle(userQuestion = "") {
   const strictDetections = getStrictDetectionsForAssistant(latestDetections || {});
+  const exactQuestion = String(userQuestion || "").trim();
+  const localSummary = [
+    localAnswerText?.textContent || "",
+    ...Array.from(localAnswerList?.querySelectorAll("li") || []).map((item) => item.textContent || "")
+  ].filter(Boolean).join(" ");
+  const course = latestCheckedCourseName || latestPageContext?.pageTitle
+    ? {
+      name: latestCheckedCourseName || latestPageContext?.pageTitle || "",
+      url: latestPageContext?.url || latestPageContext?.currentUrl || ""
+    }
+    : null;
+
   return globalThis.JimaChatV2?.buildAiContextBundle
     ? globalThis.JimaChatV2.buildAiContextBundle({
       pageContext: latestPageContext,
       detections: strictDetections,
-      userQuestion
+      userQuestion: exactQuestion,
+      originalUserMessage: exactQuestion,
+      recentChatMessages: jimaChatHistory,
+      localSummary,
+      course,
+      assignmentDetail: latestAssignmentDetail,
+      lastReferencedFile: jimaSessionMemory.lastReferencedFile,
+      lastFileAnalysisSummary: jimaSessionMemory.lastFileAnalysisSummary
     })
     : {
       pageContext: latestPageContext,
       detections: strictDetections,
-      userQuestion
+      userQuestion: exactQuestion
     };
 }
 
@@ -1468,7 +1488,7 @@ function cancelFollowupDownload() {
   setFollowupStatus("Download canceled. No files were downloaded.", "success");
 }
 
-function showAiConfirmationInChat() {
+function showAiConfirmationInChat(question = "") {
   if (!latestPageContext) {
     addChatMessage("assistant", "Run a local Moodle analysis first. After that, I can ask AI only if you confirm sending the extracted context to your local backend.");
     return;
@@ -1480,9 +1500,12 @@ function showAiConfirmationInChat() {
   }
 
   pendingAiConfirmation = true;
+  const exactQuestion = String(question || aiQuestionInput?.value || "").trim();
   addChatMessage(
     "assistant",
-    "AI analysis will send the latest extracted Moodle context and local evidence to your local Jima backend. File contents are not included unless you separately attach a file and click Analyze file. No API key is stored in the extension. Continue?",
+    exactQuestion
+      ? `I can answer this with AI using the latest extracted Moodle context.\n\nQuestion: "${exactQuestion}"\n\nAI analysis will send the latest extracted Moodle context, recent chat context, and local evidence to your local Jima backend. File contents are not included unless you separately attach a file and click Analyze file. Continue?`
+      : "AI analysis will send the latest extracted Moodle context, recent chat context, and local evidence to your local Jima backend. File contents are not included unless you separately attach a file and click Analyze file. No API key is stored in the extension. Continue?",
     [
       { label: "Continue with AI", dataset: { chatAction: "confirmAi" } },
       { label: "Cancel", dataset: { chatAction: "cancel" } }
@@ -1562,6 +1585,16 @@ function showFileReadLimitation(query) {
   const availableFiles = memoryFile.length > 0 ? memoryFile : fallbackFiles.length > 0 ? fallbackFiles : sourceFiles;
 
   if (availableFiles.length === 0) {
+    if (chatMode === "ai" && latestPageContext) {
+      if (aiQuestionInput) aiQuestionInput.value = query;
+      addChatMessage(
+        "assistant",
+        "I do not have a matching file candidate or selected local file. I can ask AI using the latest extracted Moodle context and your exact question, but file contents will not be included."
+      );
+      runJimaTool("confirmAi", { question: query });
+      return;
+    }
+
     openFileAnalysisPanel(query);
     addChatMessage(
       "assistant",
@@ -1670,7 +1703,7 @@ function setSelectedAnalysisFile(file, announce = false) {
   updateFileAnalysisButtonState();
 
   if (!file) {
-    setFileAnalysisStatus("Choose a PDF, DOCX, or TXT file.", "");
+    setFileAnalysisStatus("Choose a TXT, MD, PDF, DOCX, or DOC file.", "");
     return;
   }
 
@@ -1713,7 +1746,7 @@ function validateSelectedAnalysisFile(file) {
 
   const extension = getFileExtension(file.name);
   if (!JIMA_FILE_ANALYSIS_TYPES.has(extension)) {
-    return "This file type is not supported yet. Try PDF, DOCX, or TXT.";
+    return "This file type is not supported yet. Try TXT, MD, PDF, DOCX, or DOC.";
   }
 
   if (file.size > JIMA_FILE_ANALYSIS_MAX_BYTES) {
@@ -1744,7 +1777,7 @@ function formatJimaBackendError(message, fallback = "Jima could not complete tha
   }
 
   if (/unsupported file/.test(normalized)) {
-    return "This file type is not supported yet. Try PDF, DOCX, or TXT.";
+    return "This file type is not supported yet. Try TXT, MD, PDF, DOCX, or DOC.";
   }
 
   if (/too large|10mb/.test(normalized)) {
@@ -1771,6 +1804,15 @@ function formatFileAnalysisList(title, items) {
 
 function renderFileAnalysisInChat(analysis = {}, extraction = {}) {
   const source = analysis.source || {};
+  jimaSessionMemory.lastFileAnalysisSummary = {
+    fileName: source.fileName || extraction.fileName || "",
+    fileType: source.fileType || extraction.fileType || "",
+    extractedCharacters: source.extractedCharacters || extraction.extractedCharacters || 0,
+    summary: analysis.summary || "",
+    keyPoints: Array.isArray(analysis.keyPoints) ? analysis.keyPoints.slice(0, 5) : [],
+    uncertainties: Array.isArray(analysis.uncertainties) ? analysis.uncertainties.slice(0, 5) : []
+  };
+
   const homework = Array.isArray(analysis.possibleHomework)
     ? analysis.possibleHomework.map((item) => `${item.title}${item.evidence ? ` - Evidence: ${item.evidence}` : ""}${item.uncertainty ? ` (${item.uncertainty})` : ""}`)
     : [];
@@ -1942,8 +1984,16 @@ async function routeChatQuery(query, mirrorUser = true) {
 
   const genericFileAnalysisRequest = /\b(analy[sz]e|read|summari[sz]e|explain)\b\s+(?:a\s+|the\s+|selected\s+|local\s+)?file\b|\bfile analysis\b|\u05e0\u05ea\u05d7\u05d9?\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05e7\u05e8\u05d0\u05d9?\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05e1\u05db\u05de\u05d9?\s+\u05e7\u05d5\u05d1\u05e5/i.test(trimmed);
   if (genericFileAnalysisRequest && !JIMA_FILE_REFERENCE_PATTERN.test(trimmed)) {
+    const file = getSelectedAnalysisFile();
+    const validationError = validateSelectedAnalysisFile(file);
+    if (file && !validationError) {
+      if (fileAnalysisQuestion) fileAnalysisQuestion.value = trimmed;
+      await runJimaTool("analyzeSelectedFile");
+      return;
+    }
+
     openFileAnalysisPanel(trimmed);
-    addChatMessage("assistant", "Attach a PDF, DOCX, or TXT file here, then click Analyze file. I will only upload the file after that explicit click.");
+    addChatMessage("assistant", "Attach a TXT, MD, PDF, DOCX, or DOC file here, then click Analyze file. I will only upload the file after that explicit click.");
     return;
   }
 
@@ -1964,6 +2014,14 @@ async function routeChatQuery(query, mirrorUser = true) {
   }
 
   if (intent === "read_file") {
+    const file = getSelectedAnalysisFile();
+    const validationError = validateSelectedAnalysisFile(file);
+    if (file && !validationError) {
+      if (fileAnalysisQuestion) fileAnalysisQuestion.value = trimmed;
+      await runJimaTool("analyzeSelectedFile");
+      return;
+    }
+
     await runJimaTool("explainFileBoundary", { query: trimmed });
     return;
   }
@@ -1989,9 +2047,15 @@ async function routeChatQuery(query, mirrorUser = true) {
     return;
   }
 
+  if (chatMode === "ai") {
+    if (aiQuestionInput) aiQuestionInput.value = trimmed;
+    await runJimaTool("confirmAi", { question: trimmed });
+    return;
+  }
+
   addChatMessage(
     "assistant",
-    "I can analyze the visible Moodle page, check one saved course after confirmation, inspect one assignment for deadlines, show/download detected files, or use AI after explicit confirmation. I cannot read file contents yet; file analysis is a later explicit step."
+    "I can help with page scans, homework, files, downloads, deadlines, saved courses, or selected-file analysis. Switch to AI mode or choose Ask with AI if you want a broader answer."
   );
 }
 
@@ -2728,9 +2792,7 @@ function askJimaWithAi(questionOverride = "") {
   chrome.runtime.sendMessage(
     {
       type: "JIMA_ANALYZE_WITH_AI",
-      pageContext: bundle.pageContext,
-      detections: bundle.detections,
-      userQuestion: bundle.userQuestion
+      ...bundle
     },
     (response) => {
       setAiLoading(false);
@@ -2947,7 +3009,7 @@ function initializeJimaToolRegistry() {
       sensitive: true,
       run: ({ question }) => {
         if (question && aiQuestionInput) aiQuestionInput.value = question;
-        showAiConfirmationInChat();
+        showAiConfirmationInChat(question || aiQuestionInput?.value.trim() || "");
       }
     },
     askAiWithContext: {

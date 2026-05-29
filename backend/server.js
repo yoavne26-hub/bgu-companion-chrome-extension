@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import multer from "multer";
+import path from "node:path";
 import { extractFileText } from "./fileTextExtractor.js";
 import { analyzeJimaContext, analyzeJimaFileText } from "./openaiClient.js";
 
@@ -10,12 +11,41 @@ const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_VISIBLE_TEXT_LENGTH = 8000;
 const MAX_ARRAY_ITEMS = 100;
+const SUPPORTED_FILE_EXTENSIONS = new Set([".txt", ".md", ".pdf", ".docx", ".doc"]);
+const SUPPORTED_FILE_MIME_TYPES = new Set([
+  "text/plain",
+  "text/markdown",
+  "text/x-markdown",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/octet-stream"
+]);
+
+function getUploadExtension(fileName = "") {
+  return path.extname(String(fileName || "").toLowerCase());
+}
+
+function validateUploadFile(_req, file, callback) {
+  const extension = getUploadExtension(file?.originalname);
+  const mimeType = String(file?.mimetype || "").toLowerCase();
+  const extensionAllowed = SUPPORTED_FILE_EXTENSIONS.has(extension);
+  const mimeAllowed = !mimeType || SUPPORTED_FILE_MIME_TYPES.has(mimeType);
+
+  if (!extensionAllowed || !mimeAllowed) {
+    return callback(new Error("Unsupported file type. Try TXT, MD, PDF, DOCX, or DOC."));
+  }
+
+  return callback(null, true);
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: MAX_FILE_BYTES,
     files: 1
-  }
+  },
+  fileFilter: validateUploadFile
 });
 
 app.use(express.json({ limit: "1mb" }));
@@ -136,14 +166,14 @@ app.post("/api/jima/analyze-file", (req, res) => {
 
       return res.status(400).json({
         ok: false,
-        error: "Jima could not read the uploaded file request."
+        error: uploadError.message || "Jima could not read the uploaded file request."
       });
     }
 
     if (!req.file) {
       return res.status(400).json({
         ok: false,
-        error: "Choose a PDF, DOCX, or TXT file before asking Jima to analyze it."
+        error: "Choose a TXT, MD, PDF, DOCX, or DOC file before asking Jima to analyze it."
       });
     }
 

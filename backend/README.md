@@ -61,7 +61,7 @@ Start this backend before using "Ask Jima with AI" or explicit selected-file ana
 
 Detected Moodle file downloads are handled by the Chrome Extension, not this backend. Downloads only start after the user selects files in the Jima side panel and clicks "Download selected files". Moodle file links are not fetched or read automatically.
 
-Explicit selected-file analysis is separate: the user must manually choose or drop a local `.txt`, `.pdf`, or `.docx` file in Jima and click "Analyze file". Only then is that selected file sent to this local backend for text extraction and AI analysis. Uploaded files are held in memory for the request and are not permanently stored.
+Explicit selected-file analysis is separate: the user must manually choose or drop a local `.txt`, `.md`, `.pdf`, `.docx`, or `.doc` file in Jima and click "Analyze file". Only then is that selected file sent to this local backend for text extraction and AI analysis. Uploaded files are held in memory for the request and are not permanently stored.
 
 Saved Jima academic tasks are stored locally by the Chrome Extension in `chrome.storage.local` under `jimaSavedTasks`. They are not sent to this backend or to OpenAI.
 
@@ -83,13 +83,14 @@ Jima Chat V2 keeps the first side-panel experience as one chat/search surface wi
 
 - Local mode uses only extension-side extraction, deterministic routing, saved-course lookup, assignment detail inspection, saved tasks, and explicit selected-file downloads.
 - AI mode still requires confirmation before the extension sends the latest minimal extracted Moodle context and detections to this backend.
+- AI chat uses the student's exact confirmed question, recent small chat context, local evidence, and metadata such as the last referenced file. It does not replace the question with a generic page-summary prompt.
 - AI mode does not override local tools. File download/show/open requests, current-page scans, saved-course checks, and assignment deadline follow-ups stay local first.
 - The extension can suggest tools/actions in chat, but sensitive actions such as AI requests and downloads still require a separate user click.
 - File links can be listed, opened by the browser, or downloaded after confirmation. Moodle files are not read or uploaded automatically.
 - When a student asks what a Moodle file is about, the extension first explains that Jima has only seen the file title/link. It then offers download/open actions and opens a compact chat-native file analysis card when requested.
 - After a download starts, the extension guides the student to manually attach the downloaded file if they want a content summary.
 - Precise file references such as "lecture 5", "הרצאה 5", or "5 הרצאה" are matched locally against visible file/resource titles. Jima remembers the last referenced file during the side-panel session for follow-ups like "download it" or "can you read it".
-- File-content analysis is explicit only: the user manually selects a local TXT, PDF, or DOCX file, then the backend extracts text and supplies that text to the model. PPTX is not supported yet.
+- File-content analysis is explicit only: the user manually selects a local TXT, MD, PDF, DOCX, or DOC file, then the backend extracts text and supplies that text to the model. PPTX is not supported yet.
 
 ## Endpoints
 
@@ -110,7 +111,7 @@ Expected response:
 
 ### POST /api/jima/analyze-context
 
-This endpoint accepts extracted Moodle context and deterministic detections, then calls OpenAI server-side.
+This endpoint accepts extracted Moodle context, deterministic detections, recent compact chat context, and the exact confirmed `userQuestion`, then calls OpenAI server-side.
 
 Example:
 
@@ -143,14 +144,17 @@ This endpoint accepts one manually selected local file through `multipart/form-d
 Supported file types:
 
 - TXT
+- MD
 - PDF
 - DOCX
+- DOC
 
 Limits:
 
 - maximum file size: 10MB
 - extracted text sent to OpenAI is capped at 20,000 characters
 - uploaded files are not permanently stored
+- DOC support uses legacy Word text extraction and may fail for encrypted, corrupted, image-based, or unsupported old files
 - PPTX is not supported yet
 
 Example:
@@ -199,4 +203,5 @@ Successful responses include:
 - Conversational file state is session-only in the side panel and is not persisted or sent to the backend.
 - Assignment detail deadline extraction is local and based only on visible Moodle detail-page evidence.
 - File contents extracted from explicit user-selected files are not saved to `chrome.storage.local` and are not stored permanently by this backend.
+- Page-context AI receives only compact metadata/summaries and recent chat text after confirmation. Previous extracted file contents are not included in page-context AI requests.
 - CORS is not enabled. The extension uses the existing narrow localhost host permission for backend calls; page-context AI is routed through the background service worker, while explicit file analysis posts the user-selected file from the side panel.

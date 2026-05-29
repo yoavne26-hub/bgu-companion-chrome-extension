@@ -485,9 +485,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === JIMA_MESSAGES.ANALYZE_WITH_AI) {
     askJimaBackend({
+      source: message.source,
+      mode: message.mode,
+      originalUserMessage: message.originalUserMessage,
+      recentChatMessages: message.recentChatMessages || [],
+      localSummary: message.localSummary || "",
+      course: message.course || null,
       pageContext: message.pageContext,
       detections: message.detections || {},
-      userQuestion: message.userQuestion || ""
+      assignmentDetail: message.assignmentDetail || null,
+      lastReferencedFile: message.lastReferencedFile || null,
+      lastFileAnalysisSummary: message.lastFileAnalysisSummary || null,
+      privacyNote: message.privacyNote || "",
+      userQuestion: message.userQuestion || message.originalUserMessage || ""
     })
       .then(sendResponse)
       .catch(() => {

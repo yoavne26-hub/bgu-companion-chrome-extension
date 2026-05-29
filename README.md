@@ -43,7 +43,7 @@ Jima is the integrated BGU Companion student assistant. The current Study Dock U
 
 - Local mode can scan the currently visible BGU Moodle page, find possible homework/date/file evidence, resolve saved courses, and inspect one selected assignment detail page.
 - File handling stays controlled: Jima can match files such as `lecture 5`, open Moodle file links, and start downloads only after confirmation.
-- File-content analysis is explicit: the user manually chooses or drops a local TXT, PDF, or DOCX file, then clicks `Analyze file`.
+- File-content analysis is explicit: the user manually chooses or drops a local TXT, MD, PDF, DOCX, or DOC file, then clicks `Analyze file`.
 - AI mode uses the local backend proxy only after confirmation. OpenAI API keys stay in `backend/.env`, never in extension files.
 - Jima does not silently send Moodle content, read downloaded files by filename, fetch Moodle files, or claim file contents were read unless extracted text was actually provided.
 

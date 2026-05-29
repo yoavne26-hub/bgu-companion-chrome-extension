@@ -62,11 +62,50 @@ function capJimaBundleText(value, limit) {
   return text.length > limit ? `${text.slice(0, limit).trim()}...` : text;
 }
 
+function capJimaBundleObject(value, limit = 800) {
+  if (!value || typeof value !== "object") return null;
+  const result = {};
+  for (const [key, rawValue] of Object.entries(value)) {
+    if (rawValue == null) continue;
+    if (typeof rawValue === "string") {
+      result[key] = capJimaBundleText(rawValue, limit);
+    } else if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+      result[key] = rawValue;
+    } else if (Array.isArray(rawValue)) {
+      result[key] = rawValue.slice(0, 8).map((item) => (
+        typeof item === "string" ? capJimaBundleText(item, 300) : capJimaBundleObject(item, 350)
+      ));
+    } else if (typeof rawValue === "object") {
+      result[key] = capJimaBundleObject(rawValue, Math.min(limit, 450));
+    }
+  }
+  return result;
+}
+
+function capJimaChatMessages(messages = []) {
+  return (Array.isArray(messages) ? messages : [])
+    .slice(-6)
+    .map((message) => ({
+      role: message.role === "user" ? "user" : "jima",
+      text: capJimaBundleText(message.text || "", 650),
+      createdAt: message.createdAt || ""
+    }))
+    .filter((message) => message.text);
+}
+
 function buildJimaAiContextBundle(input = {}) {
   const pageContext = input.pageContext || {};
   const detections = input.detections || {};
+  const exactQuestion = capJimaBundleText(input.originalUserMessage || input.userQuestion || "", 800);
 
   return {
+    source: "bgu-companion-extension",
+    mode: "explicit_user_ai_request",
+    userQuestion: exactQuestion,
+    originalUserMessage: exactQuestion,
+    recentChatMessages: capJimaChatMessages(input.recentChatMessages),
+    localSummary: capJimaBundleText(input.localSummary || "", 1200),
+    course: capJimaBundleObject(input.course, 500),
     pageContext: {
       pageTitle: pageContext.pageTitle || pageContext.documentTitle || "",
       url: pageContext.currentUrl || pageContext.url || "",
@@ -87,7 +126,10 @@ function buildJimaAiContextBundle(input = {}) {
         ? detections.fileCandidates.slice(0, 30)
         : []
     },
-    userQuestion: capJimaBundleText(input.userQuestion || "", 600)
+    assignmentDetail: capJimaBundleObject(input.assignmentDetail, 800),
+    lastReferencedFile: capJimaBundleObject(input.lastReferencedFile, 400),
+    lastFileAnalysisSummary: capJimaBundleObject(input.lastFileAnalysisSummary, 600),
+    privacyNote: "User explicitly confirmed AI analysis. File contents are not included unless the user explicitly selected a file for file analysis."
   };
 }
 
@@ -113,7 +155,7 @@ const JIMA_INTENT_PATTERNS = Object.freeze({
 
 const JIMA_FILE_DOWNLOAD_CLEAN_PATTERN = /\b(download|get)\b.*\b(file|files|pdf|lecture|lec|lesson|resource|slides?)\b|\b(file|files|pdf|lecture|lec|lesson|resource|slides?)\b.*\b(download|get)\b|\u05d4\u05d5\u05e8\u05d3|\u05d4\u05d5\u05e8\u05d9\u05d3\u05d9|\u05ea\u05d5\u05e8\u05d9\u05d3|\u05ea\u05d5\u05e8\u05d9\u05d3\u05d9|\u05dc\u05d4\u05d5\u05e8\u05d9\u05d3/;
 const JIMA_FILE_SHOW_CLEAN_PATTERN = /\b(show|list|open|view)\b.*\b(file|files|pdf|lecture|lec|lesson|resource|slides?)\b|\b(file|files|resources?)\b.*\b(show|list|open|view|found|available)\b|\u05de\u05d4\s+\u05d4\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d0\u05d9\u05dc\u05d5\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d4\u05e6\u05d2\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05ea\u05e8\u05d0\u05d4\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05e4\u05ea\u05d7.*(?:\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e8\u05e6\u05d0\u05d4)|\u05ea\u05e4\u05ea\u05d7.*(?:\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e8\u05e6\u05d0\u05d4)/;
-const JIMA_FILE_READ_CLEAN_PATTERN = /\b(read|summari[sz]e|analy[sz]e|explain)\b.*\b(file|pdf|docx|txt|lecture|lec|lesson|resource|slides?)\b|\bwhat\s+(?:is|are|s)\b.*\b(about|lecture|lec|lesson|file|resource)\b|can you read it|read it|summari[sz]e it|analy[sz]e it|explain it|what is.*about|\u05ea\u05e7\u05e8\u05d0|\u05ea\u05e7\u05e8\u05d0\u05d9|\u05ea\u05e1\u05db\u05dd|\u05ea\u05e1\u05db\u05de\u05d9|\u05e1\u05db\u05dd.*\u05e7\u05d5\u05d1\u05e5|\u05e1\u05db\u05de\u05d9.*\u05e7\u05d5\u05d1\u05e5|\u05e0\u05ea\u05d7.*\u05e7\u05d5\u05d1\u05e5|\u05e0\u05ea\u05d7\u05d9.*\u05e7\u05d5\u05d1\u05e5|\u05e2\u05dc\s+\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e2\u05dc\s+\u05de\u05d4.*\u05e7\u05d5\u05d1\u05e5/;
+const JIMA_FILE_READ_CLEAN_PATTERN = /\b(read|summari[sz]e|analy[sz]e|explain)\b.*\b(file|pdf|docx?|doc|md|markdown|txt|lecture|lec|lesson|resource|slides?|homework|assignment)\b|\bwhat\s+(?:is|are|s)\b.*\b(about|lecture|lec|lesson|file|resource)\b|can you read it|read it|summari[sz]e it|analy[sz]e it|explain it|what is.*about|\u05ea\u05e7\u05e8\u05d0|\u05ea\u05e7\u05e8\u05d0\u05d9|\u05ea\u05e1\u05db\u05dd|\u05ea\u05e1\u05db\u05de\u05d9|\u05e1\u05db\u05dd.*\u05e7\u05d5\u05d1\u05e5|\u05e1\u05db\u05de\u05d9.*\u05e7\u05d5\u05d1\u05e5|\u05e0\u05ea\u05d7.*(?:\u05e7\u05d5\u05d1\u05e5|\u05e2\u05d1\u05d5\u05d3\u05ea\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05d4\u05e8\u05e6\u05d0\u05d4)|\u05e0\u05ea\u05d7\u05d9.*(?:\u05e7\u05d5\u05d1\u05e5|\u05e2\u05d1\u05d5\u05d3\u05ea\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05d4\u05e8\u05e6\u05d0\u05d4)|\u05e2\u05dc\s+\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e2\u05dc\s+\u05de\u05d4.*\u05e7\u05d5\u05d1\u05e5/;
 const JIMA_FILE_REFERENCE_CLEAN_PATTERN = /\b(?:lecture|lec|lesson)\s*(?:number\s*)?\d+\b|\b\d+\s*(?:lecture|lec|lesson)\b|\u05d4\u05e8\u05e6\u05d0\u05d4\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4\s*\d+|\d+\s*\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05e7\u05d5\u05d1\u05e5/;
 
 function classifyJimaChatIntent(input = {}) {

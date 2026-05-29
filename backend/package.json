@@ -15,7 +15,8 @@
     "mammoth": "^1.8.0",
     "multer": "^2.0.0",
     "openai": "^4.77.0",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "word-extractor": "^1.0.4"
   },
   "engines": {
     "node": ">=20"
