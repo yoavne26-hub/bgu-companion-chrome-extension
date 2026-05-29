@@ -157,6 +157,40 @@ const JIMA_FILE_DOWNLOAD_CLEAN_PATTERN = /\b(download|get)\b.*\b(file|files|pdf|
 const JIMA_FILE_SHOW_CLEAN_PATTERN = /\b(show|list|open|view)\b.*\b(file|files|pdf|lecture|lec|lesson|resource|slides?)\b|\b(file|files|resources?)\b.*\b(show|list|open|view|found|available)\b|\u05de\u05d4\s+\u05d4\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d0\u05d9\u05dc\u05d5\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d4\u05e6\u05d2\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05ea\u05e8\u05d0\u05d4\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05e4\u05ea\u05d7.*(?:\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e8\u05e6\u05d0\u05d4)|\u05ea\u05e4\u05ea\u05d7.*(?:\u05e7\u05d5\u05d1\u05e5|\u05d4\u05e8\u05e6\u05d0\u05d4)/;
 const JIMA_FILE_READ_CLEAN_PATTERN = /\b(read|summari[sz]e|analy[sz]e|explain)\b.*\b(file|pdf|docx?|doc|md|markdown|txt|lecture|lec|lesson|resource|slides?|homework|assignment)\b|\bwhat\s+(?:is|are|s)\b.*\b(about|lecture|lec|lesson|file|resource)\b|can you read it|read it|summari[sz]e it|analy[sz]e it|explain it|what is.*about|\u05ea\u05e7\u05e8\u05d0|\u05ea\u05e7\u05e8\u05d0\u05d9|\u05ea\u05e1\u05db\u05dd|\u05ea\u05e1\u05db\u05de\u05d9|\u05e1\u05db\u05dd.*\u05e7\u05d5\u05d1\u05e5|\u05e1\u05db\u05de\u05d9.*\u05e7\u05d5\u05d1\u05e5|\u05e0\u05ea\u05d7.*(?:\u05e7\u05d5\u05d1\u05e5|\u05e2\u05d1\u05d5\u05d3\u05ea\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05d4\u05e8\u05e6\u05d0\u05d4)|\u05e0\u05ea\u05d7\u05d9.*(?:\u05e7\u05d5\u05d1\u05e5|\u05e2\u05d1\u05d5\u05d3\u05ea\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05d4\u05e8\u05e6\u05d0\u05d4)|\u05e2\u05dc\s+\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05de\u05d4.*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05e2\u05dc\s+\u05de\u05d4.*\u05e7\u05d5\u05d1\u05e5/;
 const JIMA_FILE_REFERENCE_CLEAN_PATTERN = /\b(?:lecture|lec|lesson)\s*(?:number\s*)?\d+\b|\b\d+\s*(?:lecture|lec|lesson)\b|\u05d4\u05e8\u05e6\u05d0\u05d4\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4\s*\d+|\d+\s*\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5\s*(?:\u05de\u05e1\u05e4\u05e8\s*)?\d+|\d+\s*\u05e7\u05d5\u05d1\u05e5/;
+const JIMA_HOMEWORK_CLEAN_PATTERN = /\b(homework|assignment|assignments|task|tasks|due|deadline|submit|submission|quiz|exercise)\b|\u05e2\u05d1\u05d5\u05d3\u05ea\s+\u05d1\u05d9\u05ea|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05de\u05d8\u05dc\u05d5\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df/;
+const JIMA_CURRENT_CONTEXT_CLEAN_PATTERN = /\b(this|current|here)\b.*\b(course|page)\b|\b(in|on)\s+this\s+(course|page)\b|\bhere\b|\bcurrent\s+(course|page)\b|\u05d1\u05e7\u05d5\u05e8\u05e1\s+\u05d4\u05d6\u05d4|\u05d1\u05e2\u05de\u05d5\u05d3\s+\u05d4\u05d6\u05d4|\u05d4\u05e7\u05d5\u05e8\u05e1\s+\u05d4\u05d6\u05d4|\u05d4\u05e2\u05de\u05d5\u05d3\s+\u05d4\u05d6\u05d4|\u05db\u05d0\u05df|\u05e4\u05d4/;
+const JIMA_CURRENT_SCAN_CLEAN_PATTERN = /\b(analy[sz]e|check|scan)\b.*\b(current|this|page|course|moodle)\b|\bcheck\s+homework\s+on\s+this\s+page\b|\u05e0\u05ea\u05d7.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)|\u05e0\u05ea\u05d7\u05d9.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)|\u05d1\u05d3\u05d5\u05e7.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)|\u05d1\u05d3\u05e7\u05d9.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)/;
+
+function hasHomeworkIntent(query) {
+  return JIMA_HOMEWORK_CLEAN_PATTERN.test(query) || JIMA_INTENT_PATTERNS.homework.test(query);
+}
+
+function isGenericCurrentCourseTail(value = "") {
+  return /^(?:this|current|the)?\s*(?:course|page|moodle|here)\b/.test(value) ||
+    /^(?:\u05d4)?(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)\s+\u05d4\u05d6\u05d4$|^\u05db\u05d0\u05df$|^\u05e4\u05d4$/.test(value);
+}
+
+function hasNamedCourseLookup(query) {
+  if (JIMA_CURRENT_CONTEXT_CLEAN_PATTERN.test(query)) return false;
+
+  const englishNamedMatch = query.match(/\b(?:in|for|course|class)\s+([\u0590-\u05ffA-Za-z0-9][\u0590-\u05ffA-Za-z0-9\s-]{1,48})$/i);
+  if (englishNamedMatch && !isGenericCurrentCourseTail(englishNamedMatch[1].trim())) return true;
+
+  if (/\b(?:open|check|find|enter|go to)\s+(?:course\s+)?[\u0590-\u05ffA-Za-z0-9][\u0590-\u05ffA-Za-z0-9\s-]{2,48}$/i.test(query)) {
+    return !/\b(current|this|page|moodle|here)\b/.test(query);
+  }
+
+  if (/(?:\u05d1\u05e7\u05d5\u05e8\u05e1|\u05dc\u05e7\u05d5\u05e8\u05e1|\u05e7\u05d5\u05e8\u05e1)\s+[\u0590-\u05ffA-Za-z0-9]{2,}/.test(query)) return true;
+  if (/(?:\u05d1|\u05dc)[\u0590-\u05ff]{3,}\b/.test(query) && !/(?:\u05d1\u05e7\u05d5\u05e8\u05e1|\u05d1\u05e2\u05de\u05d5\u05d3|\u05d1\u05d6\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05dc\u05de\u05d8\u05dc\u05d4)/.test(query)) return true;
+  if (/(?:\u05db\u05e0\u05e1|\u05db\u05e0\u05e1\u05d9|\u05e4\u05ea\u05d7|\u05e4\u05ea\u05d7\u05d9|\u05d1\u05d3\u05d5\u05e7|\u05d1\u05d3\u05e7\u05d9)\s+(?:\u05dc)?[\u0590-\u05ff]{3,}/.test(query)) return true;
+
+  return false;
+}
+
+function isCurrentHomeworkRequest(query) {
+  if (!hasHomeworkIntent(query)) return false;
+  return JIMA_CURRENT_CONTEXT_CLEAN_PATTERN.test(query) || !hasNamedCourseLookup(query);
+}
 
 function classifyJimaChatIntent(input = {}) {
   const query = normalizeJimaChatQuery(input.query);
@@ -166,9 +200,11 @@ function classifyJimaChatIntent(input = {}) {
   if (JIMA_FILE_READ_CLEAN_PATTERN.test(query) || JIMA_INTENT_PATTERNS.fileRead.test(query)) return "read_file";
   if (JIMA_FILE_SHOW_CLEAN_PATTERN.test(query) || JIMA_INTENT_PATTERNS.fileShow.test(query)) return "show_files";
   if (JIMA_FILE_REFERENCE_CLEAN_PATTERN.test(query)) return "file_reference";
+  if (hasHomeworkIntent(query) && hasNamedCourseLookup(query)) return "homework_or_course";
   if (JIMA_INTENT_PATTERNS.assignmentFollowup.test(query)) return "assignment_detail";
-  if (JIMA_INTENT_PATTERNS.currentScan.test(query)) return "analyze_page";
-  if (JIMA_INTENT_PATTERNS.homework.test(query)) return "homework_or_course";
+  if (isCurrentHomeworkRequest(query)) return "analyze_page";
+  if (JIMA_CURRENT_SCAN_CLEAN_PATTERN.test(query) || JIMA_INTENT_PATTERNS.currentScan.test(query)) return "analyze_page";
+  if (hasNamedCourseLookup(query)) return "homework_or_course";
   if (JIMA_INTENT_PATTERNS.explicitAi.test(query)) return "ai";
 
   if (

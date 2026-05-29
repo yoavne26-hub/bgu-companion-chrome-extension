@@ -18,6 +18,7 @@ const SUPPORTED_FILE_MIME_TYPES = new Set([
   "text/x-markdown",
   "application/pdf",
   "application/msword",
+  "application/x-msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/octet-stream"
 ]);
@@ -26,16 +27,26 @@ function getUploadExtension(fileName = "") {
   return path.extname(String(fileName || "").toLowerCase());
 }
 
-function validateUploadFile(_req, file, callback) {
-  const extension = getUploadExtension(file?.originalname);
-  const mimeType = String(file?.mimetype || "").toLowerCase();
-  const extensionAllowed = SUPPORTED_FILE_EXTENSIONS.has(extension);
-  const mimeAllowed = !mimeType || SUPPORTED_FILE_MIME_TYPES.has(mimeType);
+function getUploadDebug(file) {
+  return {
+    extension: getUploadExtension(file?.originalname),
+    mimeType: String(file?.mimetype || "").toLowerCase()
+  };
+}
 
-  if (!extensionAllowed || !mimeAllowed) {
-    return callback(new Error("Unsupported file type. Try TXT, MD, PDF, DOCX, or DOC."));
+function validateUploadFile(_req, file, callback) {
+  const debug = getUploadDebug(file);
+  const extensionAllowed = SUPPORTED_FILE_EXTENSIONS.has(debug.extension);
+
+  if (!extensionAllowed) {
+    const error = new Error("Unsupported file type. Try TXT, MD, PDF, DOCX, or DOC.");
+    error.statusCode = 400;
+    error.debug = debug;
+    return callback(error);
   }
 
+  // Browser MIME values for legacy Word files vary widely. Keep the strict
+  // extension allowlist above, then let the extractor validate actual content.
   return callback(null, true);
 }
 
@@ -166,7 +177,8 @@ app.post("/api/jima/analyze-file", (req, res) => {
 
       return res.status(400).json({
         ok: false,
-        error: uploadError.message || "Jima could not read the uploaded file request."
+        error: uploadError.message || "Jima could not read the uploaded file request.",
+        debug: uploadError.debug || undefined
       });
     }
 

@@ -30,6 +30,12 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Open a BGU Moodle course page.
 - [ ] Ask Jima: `נתחי את הקורס`.
 - [ ] Confirm Jima runs a local scan and does not call the backend.
+- [ ] Ask: `האם יש לי עבודת בית?`
+- [ ] Confirm Jima scans the current Moodle page and does not search saved courses.
+- [ ] Ask: `Do I have homework in this course?`
+- [ ] Confirm Jima scans the current Moodle page and does not search saved courses.
+- [ ] Ask: `יש לי מטלה בקורס הזה?`
+- [ ] Confirm Jima scans the current Moodle page.
 - [ ] Confirm local answer summarizes possible homework, date clues, and file resources.
 - [ ] Confirm evidence/details remain collapsed or secondary by default.
 - [ ] Test a non-Moodle page and confirm Jima says to open a BGU Moodle page first.
@@ -38,6 +44,8 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 ## Saved Course Lookup
 
 - [ ] Ask Jima about a saved course by name.
+- [ ] Ask: `Do I have homework in מימון?`
+- [ ] Confirm Jima searches saved/default courses and asks before opening a matched course.
 - [ ] Confirm matching saved/default course results appear before opening anything.
 - [ ] Confirm Jima asks for user confirmation before opening/checking a course.
 - [ ] Confirm Jima checks only the selected course page.
@@ -91,6 +99,10 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Repeat with a text-based PDF.
 - [ ] Repeat with a DOCX.
 - [ ] Repeat with a DOC file if a sample is available.
+- [ ] Upload a DOC reported by the browser as `application/msword` and confirm it is not rejected as unsupported.
+- [ ] Upload a DOC reported as empty MIME or `application/octet-stream` with a `.doc` extension and confirm it reaches extraction.
+- [ ] Try an invalid fake `.doc` and confirm the error says DOC extraction failed, not unsupported file type.
+- [ ] Click `Analyze file` repeatedly while one analysis is running and confirm only one backend request/message is created.
 - [ ] Try an unsupported file type and confirm a friendly error appears.
 - [ ] Try a file larger than 10MB and confirm a friendly size error appears.
 - [ ] Try a scanned/image-only PDF and confirm empty extraction is explained honestly.
@@ -104,6 +116,12 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Run a local Moodle scan.
 - [ ] Ask: `summarize this page with AI`.
 - [ ] Confirm Jima shows an AI confirmation before sending context.
+- [ ] While the AI confirmation is pending, ask: `האם יש לי עבודת בית?`
+- [ ] Confirm the local current-page scan still runs.
+- [ ] While an AI confirmation is pending, ask: `download הרצאה 5`.
+- [ ] Confirm the local file download flow still runs.
+- [ ] Ask another AI request while one is already pending.
+- [ ] Confirm Jima dedupes the repeated AI request and says confirmation is already pending.
 - [ ] Toggle AI mode and ask: `analyze עבודת בית 2`.
 - [ ] Confirm Jima either routes to matching local file/homework actions first, or shows AI confirmation with the exact question text.
 - [ ] Confirm backend request is sent only after clicking continue.

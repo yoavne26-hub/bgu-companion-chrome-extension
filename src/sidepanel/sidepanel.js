@@ -106,6 +106,8 @@ let chatMode = "local";
 let jimaToolRegistry = null;
 let pendingAiConfirmation = false;
 let selectedAnalysisFile = null;
+let fileAnalysisInProgress = false;
+let fileAnalysisRequestKey = "";
 const jimaChatHistory = [];
 const jimaNoticeCache = new Map();
 
@@ -127,9 +129,10 @@ const jimaSessionMemory = {
 
 const JIMA_FOLLOWUP_DOWNLOAD_PATTERN = /(download|save|get)\b.*\b(file|files|pdf|homework|assignment)|\b(file|files|pdf|homework|assignment)\b.*\b(download|save|get)|\u05d4\u05d5\u05e8\u05d3\s+\u05e7\u05d5\u05d1\u05e5|\u05ea\u05d5\u05e8\u05d9\u05d3\s+\u05e7\u05d5\u05d1\u05e5|\u05dc\u05d4\u05d5\u05e8\u05d9\u05d3\s+\u05d0\u05ea\s+\u05d4\u05e7\u05d5\u05d1\u05e5|\u05e7\u05d5\u05d1\u05e5\s+\u05d4\u05de\u05d8\u05dc\u05d4|\u05e7\u05d5\u05d1\u05e5\s+\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d4\u05d1\u05d9\u05ea/i;
 const JIMA_FOLLOWUP_SHOW_FILES_PATTERN = /(show|list|what|which).*\b(file|files|pdf|resources?)\b|\b(file|files|resources?)\b.*(found|available|show|list)|\u05de\u05d4\s+\u05d4\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d0\u05d9\u05dc\u05d5\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05d4\u05e6\u05d2\s+\u05e7\u05d1\u05e6\u05d9\u05dd|\u05ea\u05e8\u05d0\u05d4\s+\u05e7\u05d1\u05e6\u05d9\u05dd/i;
-const JIMA_CHAT_ANALYZE_PATTERN = /(analy[sz]e|check|scan).*(current|this|page|moodle)|\bcurrent moodle page\b/i;
+const JIMA_CHAT_ANALYZE_PATTERN = /(analy[sz]e|check|scan).*(current|this|page|course|moodle)|\bcurrent moodle page\b|\bcheck\s+homework\s+on\s+this\s+page\b|\u05e0\u05ea\u05d7.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)|\u05e0\u05ea\u05d7\u05d9.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)|\u05d1\u05d3\u05d5\u05e7.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)|\u05d1\u05d3\u05e7\u05d9.*(?:\u05e7\u05d5\u05e8\u05e1|\u05e2\u05de\u05d5\u05d3)/i;
 const JIMA_CHAT_AI_PATTERN = /\b(ai|openai|gpt)\b|ask jima with ai|explain with ai/i;
-const JIMA_CHAT_HOMEWORK_PATTERN = /(homework|assignment|assignments|task|tasks|due|deadline|submit|submission|quiz|exercise|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05de\u05d8\u05dc\u05d5\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df)/i;
+const JIMA_CHAT_HOMEWORK_PATTERN = /(homework|assignment|assignments|task|tasks|due|deadline|submit|submission|quiz|exercise|\u05e2\u05d1\u05d5\u05d3\u05ea\s+\u05d1\u05d9\u05ea|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05de\u05d8\u05dc\u05d4|\u05de\u05d8\u05dc\u05d5\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df)/i;
+const JIMA_CURRENT_CONTEXT_PATTERN = /\b(this|current|here)\b.*\b(course|page)\b|\b(in|on)\s+this\s+(course|page)\b|\bhere\b|\bcurrent\s+(course|page)\b|\u05d1\u05e7\u05d5\u05e8\u05e1\s+\u05d4\u05d6\u05d4|\u05d1\u05e2\u05de\u05d5\u05d3\s+\u05d4\u05d6\u05d4|\u05d4\u05e7\u05d5\u05e8\u05e1\s+\u05d4\u05d6\u05d4|\u05d4\u05e2\u05de\u05d5\u05d3\s+\u05d4\u05d6\u05d4|\u05db\u05d0\u05df|\u05e4\u05d4/i;
 const JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN = /(enter|open|check|inspect).*\b(homework|assignment|task|quiz)\b|\b(homework|assignment|task|quiz)\b.*\b(deadline|due date|date|close|closes|closing|due)\b|\b(what|when).*\b(deadline|due date|due|close|closes|closing)\b|\b(deadline date|homework date)\b|\u05ea\u05d9\u05db\u05e0\u05e1\s+\u05dc\u05de\u05d8\u05dc\u05d4|\u05db\u05e0\u05e1\s+\u05dc\u05de\u05d8\u05dc\u05d4|\u05ea\u05d1\u05d3\u05d5\u05e7\s+\u05d0\u05ea\s+\u05d4\u05de\u05d8\u05dc\u05d4|\u05de\u05d4\s+\u05d4\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05de\u05d4\s+\u05d4\u05de\u05d5\u05e2\u05d3\s+\u05d4\u05d2\u05e9\u05d4|\u05de\u05d4\s+\u05ea\u05d0\u05e8\u05d9\u05da\s+\u05d4\u05d4\u05d2\u05e9\u05d4|\u05de\u05ea\u05d9\s+\u05d4\u05d4\u05d2\u05e9\u05d4|\u05de\u05ea\u05d9\s+\u05d6\u05d4\s+\u05e0\u05e1\u05d2\u05e8|\u05de\u05ea\u05d9\s+\u05de\u05e1\u05ea\u05d9\u05d9\u05dd|\u05ea\u05d0\u05e8\u05d9\u05da\s+\u05dc\u05de\u05d8\u05dc\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df\s+\u05dc\u05de\u05d8\u05dc\u05d4/i;
 const JIMA_STRICT_TASK_PATTERN = /(homework|assignment|task|submit|submission|due|deadline|exercise|project|quiz|lab|\/mod\/(?:assign|quiz|workshop)\/view\.php|\u05de\u05d8\u05dc\u05d4|\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\s+\u05d1\u05d9\u05ea|\u05ea\u05e8\u05d2\u05d9\u05dc|\u05d4\u05d2\u05e9\u05d4|\u05dc\u05d4\u05d2\u05d9\u05e9|\u05de\u05d5\u05e2\u05d3\s+\u05d4\u05d2\u05e9\u05d4|\u05d3\u05d3\u05dc\u05d9\u05d9\u05df|\u05d1\u05d5\u05d7\u05df|\u05e4\u05e8\u05d5\u05d9\u05d9\u05e7\u05d8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e2\u05d1\u05d3\u05d4)/i;
 const JIMA_RESOURCE_ONLY_PATTERN = /(lecture|resource|file|folder|slides?|presentation|\u05d4\u05e8\u05e6\u05d0\u05d4|\u05d9\u05d7\u05d9\u05d3\u05ea\s+\u05d4\u05d5\u05e8\u05d0\u05d4|\u05e7\u05d5\u05d1\u05e5|\u05d7\u05d5\u05de\u05e8|\u05de\u05e6\u05d2\u05ea)/i;
@@ -239,8 +242,9 @@ function setFollowupDownloadLoading(isLoading) {
 
 function setFileAnalysisLoading(isLoading) {
   if (!analyzeSelectedFileBtn) return;
-  analyzeSelectedFileBtn.disabled = isLoading || !getSelectedAnalysisFile();
-  analyzeSelectedFileBtn.textContent = isLoading ? "Analyzing file..." : "Analyze file";
+  fileAnalysisInProgress = Boolean(isLoading);
+  analyzeSelectedFileBtn.disabled = isLoading || Boolean(validateSelectedAnalysisFile(getSelectedAnalysisFile()));
+  analyzeSelectedFileBtn.textContent = isLoading ? "Analyzing..." : "Analyze file";
 }
 
 function clearList(listEl) {
@@ -1739,6 +1743,15 @@ function getFileExtension(fileName = "") {
   return match?.[1] || "";
 }
 
+function getFileAnalysisRequestKey(file) {
+  if (!file) return "";
+  return [
+    file.name || "selected-file",
+    file.size || 0,
+    file.lastModified || 0
+  ].join(":");
+}
+
 function validateSelectedAnalysisFile(file) {
   if (!file) {
     return "Choose the downloaded file first, then I can analyze its contents.";
@@ -1794,7 +1807,8 @@ function formatJimaBackendError(message, fallback = "Jima could not complete tha
 function updateFileAnalysisButtonState() {
   if (!analyzeSelectedFileBtn) return;
   const error = validateSelectedAnalysisFile(getSelectedAnalysisFile());
-  analyzeSelectedFileBtn.disabled = Boolean(error);
+  analyzeSelectedFileBtn.disabled = fileAnalysisInProgress || Boolean(error);
+  analyzeSelectedFileBtn.textContent = fileAnalysisInProgress ? "Analyzing..." : "Analyze file";
 }
 
 function formatFileAnalysisList(title, items) {
@@ -1839,6 +1853,15 @@ async function analyzeSelectedLocalFile() {
     return;
   }
 
+  const requestKey = getFileAnalysisRequestKey(file);
+  if (fileAnalysisInProgress) {
+    const message = fileAnalysisRequestKey === requestKey
+      ? `I am already analyzing ${file.name}. I will show the result when the backend returns.`
+      : "A file analysis request is already in progress. Wait for it to finish before starting another.";
+    setFileAnalysisStatus(message, "active");
+    return;
+  }
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append(
@@ -1846,6 +1869,7 @@ async function analyzeSelectedLocalFile() {
     fileAnalysisQuestion?.value.trim() || "Summarize this academic file and identify key points, possible homework, and action items."
   );
 
+  fileAnalysisRequestKey = requestKey;
   setFileAnalysisLoading(true);
   setFileAnalysisStatus(`Analyzing ${file.name} through the local backend...`, "active");
   addChatMessage("assistant", `Analyzing ${file.name} through the local backend...`);
@@ -1892,6 +1916,7 @@ async function analyzeSelectedLocalFile() {
     addChatMessage("assistant", errorMessage, [], "error");
   } finally {
     clearTimeout(timeoutId);
+    fileAnalysisRequestKey = "";
     setFileAnalysisLoading(false);
   }
 }
@@ -1954,6 +1979,36 @@ function handleAssignmentDetailFollowup() {
   );
 }
 
+function isGenericCurrentCourseTail(value = "") {
+  const text = normalizeChatText(value);
+  return /^(this|current|the)?\s*(course|page|moodle|here)\b/.test(text) ||
+    /^(ה)?(קורס|עמוד)\s+הזה$|^כאן$|^פה$/.test(text);
+}
+
+function hasNamedCourseLookupIntent(query = "") {
+  const text = normalizeChatText(query);
+  if (!text || JIMA_CURRENT_CONTEXT_PATTERN.test(text)) return false;
+
+  const englishNamedMatch = text.match(/\b(?:in|for|course|class)\s+([\u0590-\u05ffA-Za-z0-9][\u0590-\u05ffA-Za-z0-9\s-]{1,48})$/i);
+  if (englishNamedMatch && !isGenericCurrentCourseTail(englishNamedMatch[1])) return true;
+
+  if (/\b(?:open|check|find|enter|go to)\s+(?:course\s+)?[\u0590-\u05ffA-Za-z0-9][\u0590-\u05ffA-Za-z0-9\s-]{2,48}$/i.test(text)) {
+    return !/\b(current|this|page|moodle|here)\b/i.test(text);
+  }
+
+  if (/(?:בקורס|לקורס|קורס)\s+[\u0590-\u05ffA-Za-z0-9]{2,}/.test(text)) return true;
+  if (/(?:ב|ל)[\u0590-\u05ff]{3,}\b/.test(text) && !/(?:בקורס|בעמוד|בזה|להגיש|למטלה)/.test(text)) return true;
+  if (/(?:כנס|כנסי|פתח|פתחי|בדוק|בדקי)\s+(?:ל)?[\u0590-\u05ff]{3,}/.test(text)) return true;
+
+  return false;
+}
+
+function isCurrentHomeworkRequest(query = "") {
+  const text = normalizeChatText(query);
+  if (!JIMA_CHAT_HOMEWORK_PATTERN.test(text)) return false;
+  return JIMA_CURRENT_CONTEXT_PATTERN.test(text) || !hasNamedCourseLookupIntent(text);
+}
+
 function getChatIntent(query) {
   const text = String(query || "").trim();
   if (globalThis.JimaChatV2?.classifyIntent) {
@@ -1964,10 +2019,11 @@ function getChatIntent(query) {
   if (JIMA_FOLLOWUP_DOWNLOAD_PATTERN.test(text)) return "download_files";
   if (JIMA_OPEN_FILE_PATTERN.test(text) || JIMA_FOLLOWUP_SHOW_FILES_PATTERN.test(text)) return "show_files";
   if (JIMA_FILE_REFERENCE_PATTERN.test(text)) return "file_reference";
+  if (JIMA_CHAT_HOMEWORK_PATTERN.test(text) && hasNamedCourseLookupIntent(text)) return "homework_or_course";
   if (JIMA_ASSIGNMENT_DETAIL_FOLLOWUP_PATTERN.test(text)) return "assignment_detail";
+  if (isCurrentHomeworkRequest(text)) return "analyze_page";
   if (JIMA_CHAT_ANALYZE_PATTERN.test(text)) return "analyze_page";
-  if (JIMA_CHAT_HOMEWORK_PATTERN.test(text) && /\b(this|current)\b.*\b(course|page)\b/i.test(text)) return "analyze_page";
-  if (JIMA_CHAT_HOMEWORK_PATTERN.test(text)) return "homework_or_course";
+  if (hasNamedCourseLookupIntent(text)) return "homework_or_course";
   if (JIMA_CHAT_AI_PATTERN.test(text)) return "ai";
   return "unsupported";
 }
@@ -2037,7 +2093,12 @@ async function routeChatQuery(query, mirrorUser = true) {
   }
 
   if (intent === "analyze_page") {
-    addChatMessage("assistant", "I will check the visible Moodle page locally. Nothing is sent to AI or the backend.");
+    addChatMessage(
+      "assistant",
+      isCurrentHomeworkRequest(trimmed)
+        ? "I'll check the visible Moodle page for homework. Nothing is sent to AI."
+        : "I'll check the visible Moodle page locally. Nothing is sent to AI or the backend."
+    );
     await runJimaTool("analyzeCurrentPageLocal");
     return;
   }

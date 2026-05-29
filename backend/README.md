@@ -154,7 +154,8 @@ Limits:
 - maximum file size: 10MB
 - extracted text sent to OpenAI is capped at 20,000 characters
 - uploaded files are not permanently stored
-- DOC support uses legacy Word text extraction and may fail for encrypted, corrupted, image-based, or unsupported old files
+- DOC support uses `word-extractor` for legacy Word text extraction and may fail for encrypted, corrupted, scanned/image-based, or unsupported old files
+- browser MIME values for DOC uploads can vary (`application/msword`, `application/x-msword`, empty, or `application/octet-stream`); the backend keeps a strict extension allowlist and lets the extractor validate supported files
 - PPTX is not supported yet
 
 Example:

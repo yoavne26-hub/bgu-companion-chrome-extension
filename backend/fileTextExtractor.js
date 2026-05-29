@@ -1,10 +1,11 @@
 import path from "node:path";
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
-import WordExtractor from "word-extractor";
+import WordExtractorModule from "word-extractor";
 
 const MAX_EXTRACTED_CHARACTERS = 20000;
 const MIN_READABLE_CHARACTERS = 20;
+const DOC_EXTRACTION_ERROR_MESSAGE = "I could not extract readable text from this DOC file. It may be encrypted, corrupted, image-based, or unsupported.";
 
 const SUPPORTED_EXTENSIONS = new Set([".txt", ".md", ".pdf", ".docx", ".doc"]);
 
@@ -78,11 +79,12 @@ async function extractDocx(buffer) {
 
 async function extractDoc(buffer) {
   try {
+    const WordExtractor = WordExtractorModule?.default || WordExtractorModule;
     const extractor = new WordExtractor();
     const document = await extractor.extract(buffer);
-    return document.getBody() || "";
+    return document?.getBody?.() || "";
   } catch {
-    const error = new Error("I could not extract readable text from this DOC file. It may be encrypted, corrupted, image-based, or unsupported.");
+    const error = new Error(DOC_EXTRACTION_ERROR_MESSAGE);
     error.statusCode = 400;
     throw error;
   }
@@ -109,7 +111,9 @@ export async function extractFileText(file) {
 
   const normalizedText = normalizeExtractedText(extractedText);
   if (normalizedText.length < MIN_READABLE_CHARACTERS) {
-    const error = new Error("I could not extract enough readable text from this file.");
+    const error = new Error(metadata.extension === ".doc"
+      ? DOC_EXTRACTION_ERROR_MESSAGE
+      : "I could not extract enough readable text from this file.");
     error.statusCode = 400;
     throw error;
   }
