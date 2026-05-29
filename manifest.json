@@ -27,7 +27,8 @@
     "https://bgu4u22.bgu.ac.il/*",
     "https://bgu4u.bgu.ac.il/*",
     "https://portal.bgu.ac.il/*",
-    "http://localhost:3000/*"
+    "http://localhost:3000/*",
+    "https://bgu-companion-chrome-extension.onrender.com/*"
   ],
   "content_scripts": [
     {

@@ -46,6 +46,7 @@ Jima is the integrated BGU Companion student assistant. The current Study Dock U
 - File-content analysis is explicit: the user manually chooses or drops a local TXT, MD, PDF, DOCX, or DOC file, then clicks `Analyze file`.
 - AI mode uses a configurable Jima backend only after confirmation. OpenAI API keys stay in the backend environment, never in extension files.
 - The backend URL and optional Jima access token are configured in the extension Options page. Local development defaults to `http://localhost:3000`; a hosted HTTPS backend can be configured later without storing OpenAI keys in Chrome storage.
+- The current hosted backend is `https://bgu-companion-chrome-extension.onrender.com` and the manifest grants only that exact backend origin, not a broad HTTPS permission.
 - Jima does not silently send Moodle content, read downloaded files by filename, fetch Moodle files, or claim file contents were read unless extracted text was actually provided.
 - The Jima side panel uses its avatar from `assets/icons/jima-avatar.png`; the official extension icons remain separate.
 

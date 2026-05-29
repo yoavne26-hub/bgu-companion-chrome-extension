@@ -115,9 +115,21 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Confirm `GET http://localhost:3000/health` returns `{ "ok": true, "service": "jima-backend", "authRequired": false }` when no backend token is configured.
 - [ ] Open Options and confirm the default Jima backend URL is `http://localhost:3000`.
 - [ ] Test the default localhost connection from Options.
-- [ ] Configure a hosted HTTPS backend URL and confirm Options accepts it.
+- [ ] Open `https://bgu-companion-chrome-extension.onrender.com/health` in the browser first.
+- [ ] Reload the unpacked extension in `chrome://extensions` after manifest host permission changes.
+- [ ] Configure `https://bgu-companion-chrome-extension.onrender.com` and confirm Options accepts it.
+- [ ] Confirm `manifest.json` includes only the exact hosted backend permission `https://bgu-companion-chrome-extension.onrender.com/*` and does not include `https://*/*`.
 - [ ] Try invalid backend URLs such as `javascript:...`, `data:...`, and non-local `http://...`; confirm validation rejects them.
 - [ ] Save a Jima backend access token and confirm it is stored in a password field, not displayed as plain text.
+- [ ] Test Options connection with the hosted backend and correct token; confirm it says `Connected to Jima backend`.
+- [ ] Test Options connection with a wrong hosted token; confirm it says the backend was reached but the token is invalid.
+- [ ] If Render is cold starting, confirm timeout messaging says Render may be waking up.
+- [ ] Confirm hosted `/health` works from the extension Options page, not only directly in the browser.
+- [ ] Confirm an `OPTIONS` preflight with `X-Jima-Access-Token` succeeds for `/health`, `/api/jima/analyze-context`, and `/api/jima/analyze-file`.
+- [ ] Confirm `analyze-context` works with the hosted backend and a valid token.
+- [ ] Confirm selected-file analysis works with the hosted backend and a valid token.
+- [ ] Confirm a random web origin is not intentionally allowed by the backend CORS policy.
+- [ ] Confirm localhost backend development still works.
 - [ ] Run a local Moodle scan.
 - [ ] Ask: `summarize this page with AI`.
 - [ ] Confirm Jima shows an AI confirmation before sending context.

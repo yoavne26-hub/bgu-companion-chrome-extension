@@ -3,6 +3,7 @@ const STORAGE_PROFILE_KEY = "userProfile";
 const STORAGE_JIMA_BACKEND_URL_KEY = "jimaBackendUrl";
 const STORAGE_JIMA_BACKEND_ACCESS_TOKEN_KEY = "jimaBackendAccessToken";
 const JIMA_DEFAULT_BACKEND_URL = "http://localhost:3000";
+const JIMA_BACKEND_TEST_TIMEOUT_MS = 20000;
 const DEFAULT_PROFILE = Object.freeze({
   usernameShort: "",
   studentId: "",
@@ -182,6 +183,14 @@ function getJimaBackendHeaders(accessToken) {
     : {};
 }
 
+function getJimaBackendNetworkErrorMessage(error) {
+  if (error?.name === "AbortError") {
+    return "Backend did not respond in time. Render may be waking up; try again in a few seconds.";
+  }
+
+  return "Could not reach the backend. Check the URL, Render service status, or extension host permission.";
+}
+
 async function testJimaBackendConnection() {
   const config = getJimaBackendInputs();
   if (!config.ok) {
@@ -190,21 +199,29 @@ async function testJimaBackendConnection() {
   }
 
   setStatus(jimaBackendStatusEl, "Testing Jima backend connection...", "");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), JIMA_BACKEND_TEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(buildJimaBackendUrl(config.backendUrl, "/health"), {
       method: "GET",
-      headers: getJimaBackendHeaders(config.accessToken)
+      headers: getJimaBackendHeaders(config.accessToken),
+      signal: controller.signal
     });
     const body = await response.json().catch(() => null);
 
     if (response.status === 401 || response.status === 403) {
-      setStatus(jimaBackendStatusEl, "Unauthorized. Check the Jima backend access token.", "error");
+      setStatus(jimaBackendStatusEl, "Backend reached, but the access token is invalid. Check the token in Options.", "error");
+      return;
+    }
+
+    if (!body || typeof body !== "object") {
+      setStatus(jimaBackendStatusEl, "Backend reached, but it returned a non-JSON health response. Check the backend URL.", "error");
       return;
     }
 
     if (!response.ok || body?.ok !== true) {
-      setStatus(jimaBackendStatusEl, "Jima backend returned an invalid health response.", "error");
+      setStatus(jimaBackendStatusEl, "Backend reached, but the health check failed. Check the backend service logs.", "error");
       return;
     }
 
@@ -212,8 +229,10 @@ async function testJimaBackendConnection() {
       ? " Access token protection is enabled."
       : " No backend access token is required by this backend.";
     setStatus(jimaBackendStatusEl, `Connected to Jima backend.${authNote}`, "success");
-  } catch {
-    setStatus(jimaBackendStatusEl, "Jima backend is unreachable. Check the backend URL or whether the service is running.", "error");
+  } catch (error) {
+    setStatus(jimaBackendStatusEl, getJimaBackendNetworkErrorMessage(error), "error");
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

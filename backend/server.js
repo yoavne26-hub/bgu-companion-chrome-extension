@@ -1,5 +1,6 @@
 import "dotenv/config";
 import crypto from "node:crypto";
+import cors from "cors";
 import express from "express";
 import multer from "multer";
 import path from "node:path";
@@ -13,6 +14,8 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_VISIBLE_TEXT_LENGTH = 8000;
 const MAX_ARRAY_ITEMS = 100;
 const JIMA_ACCESS_TOKEN = String(process.env.JIMA_ACCESS_TOKEN || "").trim();
+const CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"];
+const CORS_ALLOWED_HEADERS = ["Content-Type", "X-Jima-Access-Token"];
 const SUPPORTED_FILE_EXTENSIONS = new Set([".txt", ".md", ".pdf", ".docx", ".doc"]);
 const SUPPORTED_FILE_MIME_TYPES = new Set([
   "text/plain",
@@ -61,6 +64,36 @@ const upload = multer({
   fileFilter: validateUploadFile
 });
 
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  if (String(origin).startsWith("chrome-extension://")) return true;
+
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "http:" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+  } catch {
+    return false;
+  }
+}
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (isAllowedCorsOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("CORS origin not allowed."));
+  },
+  methods: CORS_ALLOWED_METHODS,
+  allowedHeaders: CORS_ALLOWED_HEADERS,
+  optionsSuccessStatus: 204,
+  maxAge: 86400
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
 
 function isJimaAuthRequired() {
@@ -275,6 +308,13 @@ app.use((error, _req, res, next) => {
     return next();
   }
 
+  if (error.message === "CORS origin not allowed.") {
+    return res.status(403).json({
+      ok: false,
+      error: "CORS origin not allowed."
+    });
+  }
+
   if (error.type === "entity.too.large") {
     return res.status(413).json({
       ok: false,
@@ -298,6 +338,8 @@ app.use((error, _req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Jima backend listening on http://localhost:${PORT}`);
+  console.log("CORS enabled for chrome-extension origins.");
+  console.log(`JIMA_ACCESS_TOKEN auth required: ${isJimaAuthRequired()}`);
   if (!isJimaAuthRequired()) {
     console.warn("JIMA_ACCESS_TOKEN is not set. Backend is open; use only for local development.");
   }

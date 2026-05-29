@@ -231,11 +231,27 @@ Successful responses include:
 - Assignment detail deadline extraction is local and based only on visible Moodle detail-page evidence.
 - File contents extracted from explicit user-selected files are not saved to `chrome.storage.local` and are not stored permanently by this backend.
 - Page-context AI receives only compact metadata/summaries and recent chat text after confirmation. Previous extracted file contents are not included in page-context AI requests.
-- CORS is not enabled. The extension uses the existing narrow localhost host permission for backend calls; page-context AI is routed through the background service worker, while explicit file analysis posts the user-selected file from the side panel.
+- CORS is enabled for `chrome-extension://...` origins so the side panel and options page can call the hosted backend from Chrome. It also allows no-origin requests for direct `/health` checks and local development origins such as `http://localhost`.
+- CORS is not the main security control. Hosted protected endpoints still require `X-Jima-Access-Token` when `JIMA_ACCESS_TOKEN` is configured.
+- The extension uses narrow host permissions for backend calls: local development at `http://localhost:3000/*` and the current hosted Render backend at `https://bgu-companion-chrome-extension.onrender.com/*`. Page-context AI is routed through the background service worker, while explicit file analysis posts the user-selected file from the side panel.
 
 ## Hosted Mode Preparation
 
-No hosted backend URL is committed in this project yet. When deploying later, configure these environment variables in Render or another host:
+The current hosted backend URL is:
+
+```text
+https://bgu-companion-chrome-extension.onrender.com
+```
+
+The extension manifest includes only the exact hosted permission:
+
+```text
+https://bgu-companion-chrome-extension.onrender.com/*
+```
+
+After changing host permissions, reload the unpacked extension in `chrome://extensions`.
+
+For Render or another host, configure these environment variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` such as `gpt-4.1-mini`
@@ -244,7 +260,15 @@ No hosted backend URL is committed in this project yet. When deploying later, co
 
 Then open the extension Options page and set:
 
-- Backend URL: the hosted HTTPS backend URL
+- Backend URL: `https://bgu-companion-chrome-extension.onrender.com`
 - Access token: the same value configured as `JIMA_ACCESS_TOKEN`
 
-Keep in mind that a hosted backend uses the backend owner's OpenAI API quota. This phase does not add a broad `https://*/*` host permission; add a narrow hosted domain permission only after the deployment URL is chosen.
+Before testing from Options, open `/health` directly in the browser:
+
+```text
+https://bgu-companion-chrome-extension.onrender.com/health
+```
+
+After deploying CORS changes to Render, reload the unpacked extension and test the backend connection from Options. The extension sends `X-Jima-Access-Token`, so preflight `OPTIONS` requests must succeed before protected `POST` requests run.
+
+Keep in mind that a hosted backend uses the backend owner's OpenAI API quota. Do not add broad permissions such as `https://*/*`; add only exact deployed backend origins.
