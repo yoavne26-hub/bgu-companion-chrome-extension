@@ -469,7 +469,8 @@ body.options .search button {
 }
 
 body.options input[type="text"],
-body.options input[type="url"] {
+body.options input[type="url"],
+body.options input[type="password"] {
   width: 100%;
   padding: 12px 14px;
   border: 2px solid var(--border);
@@ -506,6 +507,18 @@ body.options .big-btn {
   margin-top: 8px;
 }
 
+body.options .secondary-btn {
+  background: #eff6ff;
+  color: var(--primary-dark);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  box-shadow: none;
+}
+
+body.options .secondary-btn:hover {
+  background: #dbeafe;
+  box-shadow: none;
+}
+
 body.options .small-btn {
   padding: 8px 14px;
   border-radius: 8px;
@@ -518,6 +531,17 @@ body.options .small-btn {
   transition: all 0.2s ease;
 }
 body.options .small-btn:hover { background: #fecaca; }
+
+body.options .neutral-btn {
+  width: 100%;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid var(--border);
+}
+
+body.options .neutral-btn:hover {
+  background: #f1f5f9;
+}
 
 .table-wrap {
   overflow: hidden;

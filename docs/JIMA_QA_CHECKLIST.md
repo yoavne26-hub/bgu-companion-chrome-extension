@@ -112,7 +112,12 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 ## AI Backend Flow
 
 - [ ] Start backend with `cd backend && npm start`.
-- [ ] Confirm `GET http://localhost:3000/health` returns `{ "ok": true, "service": "jima-backend" }`.
+- [ ] Confirm `GET http://localhost:3000/health` returns `{ "ok": true, "service": "jima-backend", "authRequired": false }` when no backend token is configured.
+- [ ] Open Options and confirm the default Jima backend URL is `http://localhost:3000`.
+- [ ] Test the default localhost connection from Options.
+- [ ] Configure a hosted HTTPS backend URL and confirm Options accepts it.
+- [ ] Try invalid backend URLs such as `javascript:...`, `data:...`, and non-local `http://...`; confirm validation rejects them.
+- [ ] Save a Jima backend access token and confirm it is stored in a password field, not displayed as plain text.
 - [ ] Run a local Moodle scan.
 - [ ] Ask: `summarize this page with AI`.
 - [ ] Confirm Jima shows an AI confirmation before sending context.
@@ -125,8 +130,13 @@ Use this checklist before tagging a Jima build or after changing Moodle extracti
 - [ ] Toggle AI mode and ask: `analyze עבודת בית 2`.
 - [ ] Confirm Jima either routes to matching local file/homework actions first, or shows AI confirmation with the exact question text.
 - [ ] Confirm backend request is sent only after clicking continue.
+- [ ] Start backend with `JIMA_ACCESS_TOKEN=test-token`.
+- [ ] Confirm protected `analyze-context` and `analyze-file` calls fail without the token.
+- [ ] Configure `test-token` in Options and confirm protected calls work.
+- [ ] Test Options connection with an invalid token and confirm unauthorized is shown.
+- [ ] Confirm backend without `JIMA_ACCESS_TOKEN` still supports local development.
 - [ ] Stop the backend and retry AI analysis.
-- [ ] Confirm Jima says: `The local Jima backend is not running. Start it with cd backend && npm start.`
+- [ ] Confirm Jima says the backend is unreachable and suggests checking the backend URL or service state.
 - [ ] Remove or unset `OPENAI_API_KEY` and retry.
 - [ ] Confirm Jima says the backend is running but `OPENAI_API_KEY` is not configured.
 - [ ] Confirm no API key appears in extension files, UI, or console output.

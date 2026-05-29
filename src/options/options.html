@@ -48,6 +48,24 @@
           <button id="addCourseBtn" class="big-btn" type="button">הוסף / עדכן</button>
           <div id="status" class="message" role="status"></div>
         </section>
+
+        <section class="card">
+          <div class="subtitle">Jima backend</div>
+
+          <div class="search">
+            <input id="jimaBackendUrl" type="url" autocomplete="off" placeholder="Backend URL, e.g. http://localhost:3000" />
+            <input id="jimaBackendAccessToken" type="password" autocomplete="off" placeholder="Access token for hosted backend" />
+          </div>
+
+          <button id="saveJimaBackendBtn" class="big-btn" type="button">Save backend settings</button>
+          <button id="testJimaBackendBtn" class="big-btn secondary-btn" type="button">Test connection</button>
+          <button id="resetJimaBackendBtn" class="small-btn neutral-btn" type="button">Reset to local default</button>
+          <div id="jimaBackendStatus" class="message" role="status"></div>
+
+          <div class="hint-inline">
+            OpenAI API keys belong in the backend environment only. Use an access token for hosted Jima backends.
+          </div>
+        </section>
       </div>
 
       <section class="card courses-card">

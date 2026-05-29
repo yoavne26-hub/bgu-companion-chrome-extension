@@ -9,9 +9,65 @@ const JIMA_MESSAGES = Object.freeze({
   OPEN_AND_INSPECT_ASSIGNMENT: "JIMA_OPEN_AND_INSPECT_ASSIGNMENT"
 });
 
-const JIMA_BACKEND_ANALYZE_URL = "http://localhost:3000/api/jima/analyze-context";
+const JIMA_DEFAULT_BACKEND_URL = "http://localhost:3000";
+const JIMA_BACKEND_URL_KEY = "jimaBackendUrl";
+const JIMA_BACKEND_ACCESS_TOKEN_KEY = "jimaBackendAccessToken";
 const JIMA_BACKEND_TIMEOUT_MS = 20000;
 const JIMA_COURSE_ANALYSIS_TIMEOUT_MS = 15000;
+
+function normalizeJimaBackendUrl(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "");
+  if (!raw) return { ok: true, url: JIMA_DEFAULT_BACKEND_URL };
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol === "http:") {
+      const isLocalDefault = parsed.hostname === "localhost" &&
+        parsed.port === "3000" &&
+        (parsed.pathname === "" || parsed.pathname === "/") &&
+        !parsed.search &&
+        !parsed.hash;
+      return isLocalDefault
+        ? { ok: true, url: JIMA_DEFAULT_BACKEND_URL }
+        : { ok: false, error: "Configure the Jima backend URL in Options." };
+    }
+
+    if (parsed.protocol !== "https:" || parsed.search || parsed.hash) {
+      return { ok: false, error: "Configure the Jima backend URL in Options." };
+    }
+
+    const normalizedPath = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
+    return { ok: true, url: `${parsed.origin}${normalizedPath}` };
+  } catch {
+    return { ok: false, error: "Configure the Jima backend URL in Options." };
+  }
+}
+
+async function getJimaBackendConfig() {
+  const data = await chrome.storage.local.get([
+    JIMA_BACKEND_URL_KEY,
+    JIMA_BACKEND_ACCESS_TOKEN_KEY
+  ]);
+  const urlResult = normalizeJimaBackendUrl(data[JIMA_BACKEND_URL_KEY] || JIMA_DEFAULT_BACKEND_URL);
+  if (!urlResult.ok) return urlResult;
+
+  return {
+    ok: true,
+    backendUrl: urlResult.url,
+    accessToken: String(data[JIMA_BACKEND_ACCESS_TOKEN_KEY] || "").trim()
+  };
+}
+
+function buildJimaBackendUrl(config, path) {
+  return `${config.backendUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function getJimaBackendHeaders(config, extraHeaders = {}) {
+  return {
+    ...extraHeaders,
+    ...(config.accessToken ? { "X-Jima-Access-Token": config.accessToken } : {})
+  };
+}
 
 function isMoodleTab(tab) {
   try {
@@ -252,15 +308,23 @@ async function openAndInspectAssignmentDetail(assignment) {
 }
 
 async function askJimaBackend(payload) {
+  const config = await getJimaBackendConfig();
+  if (!config.ok) {
+    return {
+      ok: false,
+      error: config.error || "Configure the Jima backend URL in Options."
+    };
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), JIMA_BACKEND_TIMEOUT_MS);
 
   try {
-    const response = await fetch(JIMA_BACKEND_ANALYZE_URL, {
+    const response = await fetch(buildJimaBackendUrl(config, "/api/jima/analyze-context"), {
       method: "POST",
-      headers: {
+      headers: getJimaBackendHeaders(config, {
         "Content-Type": "application/json"
-      },
+      }),
       body: JSON.stringify(payload),
       signal: controller.signal
     });
@@ -276,6 +340,13 @@ async function askJimaBackend(payload) {
     }
 
     if (!response.ok || body?.ok === false) {
+      if (response.status === 401 || response.status === 403) {
+        return {
+          ok: false,
+          error: "Jima backend rejected the request. Check the backend access token in Options."
+        };
+      }
+
       return {
         ok: false,
         error: body?.error || "Jima backend could not complete the analysis."
@@ -297,13 +368,13 @@ async function askJimaBackend(payload) {
     if (error?.name === "AbortError") {
       return {
         ok: false,
-        error: "Jima backend timed out. Make sure the local backend is running with cd backend && npm start, then try again."
+        error: "Jima backend timed out. Check the backend URL or whether the service is running."
       };
     }
 
     return {
       ok: false,
-      error: "The local Jima backend is not running. Start it with cd backend && npm start."
+      error: "Jima backend is unreachable. Check the backend URL or whether the service is running."
     };
   } finally {
     clearTimeout(timeoutId);

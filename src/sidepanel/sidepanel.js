@@ -83,7 +83,9 @@ const analyzeSelectedFileBtn = document.getElementById("analyzeSelectedFileBtn")
 const cancelFileAnalysisBtn = document.getElementById("cancelFileAnalysisBtn");
 const fileAnalysisStatus = document.getElementById("fileAnalysisStatus");
 
-const JIMA_FILE_ANALYSIS_URL = "http://localhost:3000/api/jima/analyze-file";
+const JIMA_DEFAULT_BACKEND_URL = "http://localhost:3000";
+const JIMA_BACKEND_URL_KEY = "jimaBackendUrl";
+const JIMA_BACKEND_ACCESS_TOKEN_KEY = "jimaBackendAccessToken";
 const JIMA_FILE_ANALYSIS_MAX_BYTES = 10 * 1024 * 1024;
 const JIMA_FILE_ANALYSIS_TIMEOUT_MS = 60000;
 const JIMA_FILE_ANALYSIS_TYPES = new Set(["txt", "md", "pdf", "docx", "doc"]);
@@ -219,7 +221,7 @@ function setCourseQueryLoading(isLoading) {
 function setAiLoading(isLoading) {
   if (!askAiBtn) return;
   askAiBtn.disabled = isLoading;
-  askAiBtn.textContent = isLoading ? "Asking local backend..." : "Ask Jima with AI";
+  askAiBtn.textContent = isLoading ? "Asking Jima backend..." : "Ask Jima with AI";
 }
 
 function setDownloadLoading(isLoading) {
@@ -398,7 +400,7 @@ function updateChatMode(mode) {
 
   if (chatModeStatus) {
     chatModeStatus.textContent = chatMode === "ai"
-      ? "AI mode still asks before sending extracted context to the local backend."
+      ? "AI mode still asks before sending extracted context to the configured backend."
       : "Local mode uses only visible page evidence and extension rules.";
   }
 }
@@ -1494,12 +1496,12 @@ function cancelFollowupDownload() {
 
 function showAiConfirmationInChat(question = "") {
   if (!latestPageContext) {
-    addChatMessage("assistant", "Run a local Moodle analysis first. After that, I can ask AI only if you confirm sending the extracted context to your local backend.");
+    addChatMessage("assistant", "Run a local Moodle analysis first. After that, I can ask AI only if you confirm sending the extracted context to your configured backend.");
     return;
   }
 
   if (pendingAiConfirmation) {
-    addChatMessage("assistant", "AI confirmation is already waiting above. Click Continue with AI only if you want to send the extracted context to your local backend.");
+    addChatMessage("assistant", "AI confirmation is already waiting above. Click Continue with AI only if you want to send the extracted context to your configured backend.");
     return;
   }
 
@@ -1508,8 +1510,8 @@ function showAiConfirmationInChat(question = "") {
   addChatMessage(
     "assistant",
     exactQuestion
-      ? `I can answer this with AI using the latest extracted Moodle context.\n\nQuestion: "${exactQuestion}"\n\nAI analysis will send the latest extracted Moodle context, recent chat context, and local evidence to your local Jima backend. File contents are not included unless you separately attach a file and click Analyze file. Continue?`
-      : "AI analysis will send the latest extracted Moodle context, recent chat context, and local evidence to your local Jima backend. File contents are not included unless you separately attach a file and click Analyze file. No API key is stored in the extension. Continue?",
+      ? `I can answer this with AI using the latest extracted Moodle context.\n\nQuestion: "${exactQuestion}"\n\nAI analysis will send the latest extracted Moodle context, recent chat context, and local evidence to your configured Jima backend. File contents are not included unless you separately attach a file and click Analyze file. Continue?`
+      : "AI analysis will send the latest extracted Moodle context, recent chat context, and local evidence to your configured Jima backend. File contents are not included unless you separately attach a file and click Analyze file. No API key is stored in the extension. Continue?",
     [
       { label: "Continue with AI", dataset: { chatAction: "confirmAi" } },
       { label: "Cancel", dataset: { chatAction: "cancel" } }
@@ -1713,14 +1715,14 @@ function setSelectedAnalysisFile(file, announce = false) {
 
   const validationError = validateSelectedAnalysisFile(file);
   setFileAnalysisStatus(
-    validationError || `File selected: ${file.name}. Click Analyze file and I will summarize it using the local backend.`,
+    validationError || `File selected: ${file.name}. Click Analyze file and I will summarize it using the configured backend.`,
     validationError ? "error" : "success"
   );
 
   if (!validationError && announce) {
     addChatMessage(
       "assistant",
-      `File selected: ${file.name}. Click Analyze file and I will summarize it using the local backend.`
+      `File selected: ${file.name}. Click Analyze file and I will summarize it using the configured backend.`
     );
   }
 }
@@ -1752,6 +1754,59 @@ function getFileAnalysisRequestKey(file) {
   ].join(":");
 }
 
+function normalizeJimaBackendUrl(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "");
+  if (!raw) return { ok: true, url: JIMA_DEFAULT_BACKEND_URL };
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol === "http:") {
+      const isLocalDefault = parsed.hostname === "localhost" &&
+        parsed.port === "3000" &&
+        (parsed.pathname === "" || parsed.pathname === "/") &&
+        !parsed.search &&
+        !parsed.hash;
+      return isLocalDefault
+        ? { ok: true, url: JIMA_DEFAULT_BACKEND_URL }
+        : { ok: false, error: "Configure the Jima backend URL in Options." };
+    }
+
+    if (parsed.protocol !== "https:" || parsed.search || parsed.hash) {
+      return { ok: false, error: "Configure the Jima backend URL in Options." };
+    }
+
+    const normalizedPath = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
+    return { ok: true, url: `${parsed.origin}${normalizedPath}` };
+  } catch {
+    return { ok: false, error: "Configure the Jima backend URL in Options." };
+  }
+}
+
+async function getJimaBackendConfig() {
+  const data = await chrome.storage.local.get([
+    JIMA_BACKEND_URL_KEY,
+    JIMA_BACKEND_ACCESS_TOKEN_KEY
+  ]);
+  const urlResult = normalizeJimaBackendUrl(data[JIMA_BACKEND_URL_KEY] || JIMA_DEFAULT_BACKEND_URL);
+  if (!urlResult.ok) return urlResult;
+
+  return {
+    ok: true,
+    backendUrl: urlResult.url,
+    accessToken: String(data[JIMA_BACKEND_ACCESS_TOKEN_KEY] || "").trim()
+  };
+}
+
+function buildJimaBackendUrl(config, path) {
+  return `${config.backendUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function getJimaBackendHeaders(config) {
+  return config.accessToken
+    ? { "X-Jima-Access-Token": config.accessToken }
+    : {};
+}
+
 function validateSelectedAnalysisFile(file) {
   if (!file) {
     return "Choose the downloaded file first, then I can analyze its contents.";
@@ -1774,7 +1829,15 @@ function formatJimaBackendError(message, fallback = "Jima could not complete tha
   const normalized = text.toLowerCase();
 
   if (!text || /failed to fetch|offline|unreachable|networkerror|load failed|could not connect/.test(normalized)) {
-    return "The local Jima backend is not running. Start it with cd backend && npm start.";
+    return "Jima backend is unreachable. Check the backend URL or whether the service is running.";
+  }
+
+  if (/unauthorized|forbidden|access token|rejected/.test(normalized)) {
+    return "Jima backend rejected the request. Check the backend access token in Options.";
+  }
+
+  if (/configure.*backend|invalid backend url/.test(normalized)) {
+    return "Configure the Jima backend URL in Options.";
   }
 
   if (/openai_api_key|api key|not configured|not set/.test(normalized)) {
@@ -1786,7 +1849,7 @@ function formatJimaBackendError(message, fallback = "Jima could not complete tha
   }
 
   if (/invalid response|malformed|structured|json/.test(normalized)) {
-    return "The local Jima backend returned an invalid response. Restart it and try again.";
+    return "The Jima backend returned an invalid response. Check the configured backend and try again.";
   }
 
   if (/unsupported file/.test(normalized)) {
@@ -1869,18 +1932,28 @@ async function analyzeSelectedLocalFile() {
     fileAnalysisQuestion?.value.trim() || "Summarize this academic file and identify key points, possible homework, and action items."
   );
 
+  const backendConfig = await getJimaBackendConfig();
+  if (!backendConfig.ok) {
+    const errorMessage = backendConfig.error || "Configure the Jima backend URL in Options.";
+    openFileAnalysisPanel();
+    setFileAnalysisStatus(errorMessage, "error");
+    addChatMessage("assistant", errorMessage, [], "error");
+    return;
+  }
+
   fileAnalysisRequestKey = requestKey;
   setFileAnalysisLoading(true);
-  setFileAnalysisStatus(`Analyzing ${file.name} through the local backend...`, "active");
-  addChatMessage("assistant", `Analyzing ${file.name} through the local backend...`);
+  setFileAnalysisStatus(`Analyzing ${file.name} through the configured Jima backend...`, "active");
+  addChatMessage("assistant", `Analyzing ${file.name} through the configured Jima backend...`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), JIMA_FILE_ANALYSIS_TIMEOUT_MS);
 
   try {
-    const response = await fetch(JIMA_FILE_ANALYSIS_URL, {
+    const response = await fetch(buildJimaBackendUrl(backendConfig, "/api/jima/analyze-file"), {
       method: "POST",
       body: formData,
+      headers: getJimaBackendHeaders(backendConfig),
       signal: controller.signal
     });
     const body = await response.json().catch(() => null);
@@ -1893,7 +1966,9 @@ async function analyzeSelectedLocalFile() {
     }
 
     if (!response.ok || body?.ok === false) {
-      const errorMessage = formatJimaBackendError(body?.error, "Jima could not analyze this selected file.");
+      const errorMessage = response.status === 401 || response.status === 403
+        ? "Jima backend rejected the request. Check the backend access token in Options."
+        : formatJimaBackendError(body?.error, "Jima could not analyze this selected file.");
       setFileAnalysisStatus(errorMessage, "error");
       addChatMessage("assistant", errorMessage, [], "error");
       return;
@@ -1906,11 +1981,11 @@ async function analyzeSelectedLocalFile() {
       return;
     }
 
-    setFileAnalysisStatus("File analysis returned from your local backend.", "success");
+    setFileAnalysisStatus("File analysis returned from your Jima backend.", "success");
     renderFileAnalysisInChat(body.analysis || {}, body.extraction || {});
   } catch (error) {
     const errorMessage = error?.name === "AbortError"
-      ? "Jima file analysis timed out. Try a smaller file or restart the local backend."
+      ? "Jima file analysis timed out. Try a smaller file or check the configured backend."
       : formatJimaBackendError(error?.message);
     setFileAnalysisStatus(errorMessage, "error");
     addChatMessage("assistant", errorMessage, [], "error");
@@ -2380,7 +2455,7 @@ function renderContext(pageContext, detections) {
   aiPanel.hidden = false;
   aiResults.hidden = true;
   setAiStatus("", "");
-  setStatus("This detection is rule-based and stays local. Use the AI button only if you want to send this extracted context to your local backend.", "success");
+  setStatus("This detection is rule-based and stays local. Use the AI button only if you want to send this extracted context to your configured backend.", "success");
   addChatMessage("assistant", answer.summary);
 
   if (chatMode === "ai" && !pendingAiConfirmation) {
@@ -2847,8 +2922,8 @@ function askJimaWithAi(questionOverride = "") {
   pendingAiConfirmation = false;
   setAiLoading(true);
   aiResults.hidden = true;
-  setAiStatus("Sending extracted context to your local Jima backend...", "active");
-  addChatMessage("assistant", "Confirmed. I am sending the extracted context to your local Jima backend now.");
+  setAiStatus("Sending extracted context to your configured Jima backend...", "active");
+  addChatMessage("assistant", "Confirmed. I am sending the extracted context to your configured Jima backend now.");
 
   chrome.runtime.sendMessage(
     {
@@ -2873,8 +2948,8 @@ function askJimaWithAi(questionOverride = "") {
       }
 
       renderAiAnalysis(response.analysis || {});
-      setAiStatus("AI analysis returned from your local backend.", "success");
-      addChatMessage("assistant", response.analysis?.summary || "AI analysis returned from your local backend.");
+      setAiStatus("AI analysis returned from your Jima backend.", "success");
+      addChatMessage("assistant", response.analysis?.summary || "AI analysis returned from your Jima backend.");
     }
   );
 }
@@ -3053,7 +3128,7 @@ function initializeJimaToolRegistry() {
       run: ({ question } = {}) => openFileAnalysisPanel(question || "")
     },
     analyzeSelectedFile: {
-      description: "Upload the manually selected local file to the local backend after explicit click.",
+      description: "Upload the manually selected local file to the configured backend after explicit click.",
       mode: "ai",
       sensitive: true,
       run: () => analyzeSelectedLocalFile()
@@ -3065,7 +3140,7 @@ function initializeJimaToolRegistry() {
       run: ({ scope }) => downloadSelectedFiles(scope || "page")
     },
     confirmAi: {
-      description: "Ask for explicit confirmation before sending the latest extracted context to the local backend.",
+      description: "Ask for explicit confirmation before sending the latest extracted context to the configured backend.",
       mode: "ai",
       sensitive: true,
       run: ({ question }) => {
@@ -3074,7 +3149,7 @@ function initializeJimaToolRegistry() {
       }
     },
     askAiWithContext: {
-      description: "Send the latest minimal context bundle to the local Jima backend after explicit confirmation.",
+      description: "Send the latest minimal context bundle to the configured Jima backend after explicit confirmation.",
       mode: "ai",
       sensitive: true,
       run: ({ question } = {}) => askJimaWithAi(question)
@@ -3109,7 +3184,7 @@ if (chatModeToggle) {
     addChatMessage(
       "system",
       chatMode === "ai"
-        ? "AI mode selected. I will still ask before sending any extracted Moodle context to the local backend."
+        ? "AI mode selected. I will still ask before sending any extracted Moodle context to the configured backend."
         : "Local mode selected. I will answer with extension-side evidence and rules only."
     );
   });
@@ -3200,7 +3275,7 @@ if (chatMessages) {
 
     if (action === "showFileAnalysis" || action === "analyzeFileUnavailable") {
       runJimaTool("showFileAnalysis", { question: button.dataset.question || "" });
-      addChatMessage("assistant", "Attach the downloaded file here, then click Analyze file. File contents are sent only to your local backend after that click.");
+      addChatMessage("assistant", "Attach the downloaded file here, then click Analyze file. File contents are sent only to your configured backend after that click.");
       return;
     }
 

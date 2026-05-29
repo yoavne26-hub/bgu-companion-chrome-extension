@@ -41,9 +41,16 @@ Edit `.env` and set:
 
 ```bash
 OPENAI_API_KEY=your_real_key
+OPENAI_MODEL=gpt-4.1-mini
+JIMA_ACCESS_TOKEN=
+PORT=3000
 ```
 
 `backend/.env` is ignored by git. Keep API keys server-side only.
+
+For local development, `JIMA_ACCESS_TOKEN` may be empty. When it is empty, the backend accepts extension requests without an access token and logs a startup warning. Use this only on your own machine.
+
+For hosted mode, set `JIMA_ACCESS_TOKEN` to a long private token and configure the same token in the extension Options page under **Jima backend**. Do not use an OpenAI API key as the Jima access token.
 
 ## Run
 
@@ -59,9 +66,16 @@ http://localhost:3000
 
 Start this backend before using "Ask Jima with AI" or explicit selected-file analysis in the extension. The local Moodle preview and rule-based detection still work when the backend is offline.
 
+The extension can use either the local backend URL or a hosted HTTPS backend URL from Options:
+
+- Backend URL: `http://localhost:3000` for local development, or your deployed HTTPS backend URL later
+- Access token: optional for local development when `JIMA_ACCESS_TOKEN` is empty, required for hosted backends
+
+Do not hardcode hosted backend URLs in the extension. A hosted backend consumes the backend owner's OpenAI API quota.
+
 Detected Moodle file downloads are handled by the Chrome Extension, not this backend. Downloads only start after the user selects files in the Jima side panel and clicks "Download selected files". Moodle file links are not fetched or read automatically.
 
-Explicit selected-file analysis is separate: the user must manually choose or drop a local `.txt`, `.md`, `.pdf`, `.docx`, or `.doc` file in Jima and click "Analyze file". Only then is that selected file sent to this local backend for text extraction and AI analysis. Uploaded files are held in memory for the request and are not permanently stored.
+Explicit selected-file analysis is separate: the user must manually choose or drop a local `.txt`, `.md`, `.pdf`, `.docx`, or `.doc` file in Jima and click "Analyze file". Only then is that selected file sent to the configured Jima backend for text extraction and AI analysis. Uploaded files are held in memory for the request and are not permanently stored.
 
 Saved Jima academic tasks are stored locally by the Chrome Extension in `chrome.storage.local` under `jimaSavedTasks`. They are not sent to this backend or to OpenAI.
 
@@ -105,8 +119,17 @@ Expected response:
 ```json
 {
   "ok": true,
-  "service": "jima-backend"
+  "service": "jima-backend",
+  "authRequired": false
 }
+```
+
+If `JIMA_ACCESS_TOKEN` is configured, `/health` remains public and returns `"authRequired": true`. If a token header is supplied and invalid, `/health` returns `401` without exposing secrets.
+
+Protected endpoints require this header when `JIMA_ACCESS_TOKEN` is configured:
+
+```text
+X-Jima-Access-Token: your-token
 ```
 
 ### POST /api/jima/analyze-context
@@ -118,6 +141,7 @@ Example:
 ```bash
 curl -X POST http://localhost:3000/api/jima/analyze-context \
   -H "Content-Type: application/json" \
+  -H "X-Jima-Access-Token: your-token-if-configured" \
   -d '{
     "pageContext": {
       "pageTitle": "Example Moodle Page",
@@ -162,6 +186,7 @@ Example:
 
 ```bash
 curl -X POST http://localhost:3000/api/jima/analyze-file \
+  -H "X-Jima-Access-Token: your-token-if-configured" \
   -F "file=@./example.txt" \
   -F "userQuestion=Summarize this file and list study actions."
 ```
@@ -189,6 +214,7 @@ Successful responses include:
 ## Security Notes
 
 - API keys must never be placed in Chrome Extension files.
+- `JIMA_ACCESS_TOKEN` protects hosted backend analysis endpoints. It is separate from `OPENAI_API_KEY` and should be rotated if exposed.
 - Moodle context is sent only after explicit user action from the side panel.
 - This backend does not store Moodle content.
 - Local rule-based detection still works without this backend.
@@ -206,3 +232,19 @@ Successful responses include:
 - File contents extracted from explicit user-selected files are not saved to `chrome.storage.local` and are not stored permanently by this backend.
 - Page-context AI receives only compact metadata/summaries and recent chat text after confirmation. Previous extracted file contents are not included in page-context AI requests.
 - CORS is not enabled. The extension uses the existing narrow localhost host permission for backend calls; page-context AI is routed through the background service worker, while explicit file analysis posts the user-selected file from the side panel.
+
+## Hosted Mode Preparation
+
+No hosted backend URL is committed in this project yet. When deploying later, configure these environment variables in Render or another host:
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` such as `gpt-4.1-mini`
+- `JIMA_ACCESS_TOKEN`
+- `PORT` if required by the host
+
+Then open the extension Options page and set:
+
+- Backend URL: the hosted HTTPS backend URL
+- Access token: the same value configured as `JIMA_ACCESS_TOKEN`
+
+Keep in mind that a hosted backend uses the backend owner's OpenAI API quota. This phase does not add a broad `https://*/*` host permission; add a narrow hosted domain permission only after the deployment URL is chosen.

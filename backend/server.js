@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "node:crypto";
 import express from "express";
 import multer from "multer";
 import path from "node:path";
@@ -11,6 +12,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_VISIBLE_TEXT_LENGTH = 8000;
 const MAX_ARRAY_ITEMS = 100;
+const JIMA_ACCESS_TOKEN = String(process.env.JIMA_ACCESS_TOKEN || "").trim();
 const SUPPORTED_FILE_EXTENSIONS = new Set([".txt", ".md", ".pdf", ".docx", ".doc"]);
 const SUPPORTED_FILE_MIME_TYPES = new Set([
   "text/plain",
@@ -61,10 +63,48 @@ const upload = multer({
 
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/health", (_req, res) => {
+function isJimaAuthRequired() {
+  return Boolean(JIMA_ACCESS_TOKEN);
+}
+
+function getRequestAccessToken(req) {
+  return String(req.get("X-Jima-Access-Token") || "").trim();
+}
+
+function isValidJimaAccessToken(providedToken) {
+  if (!isJimaAuthRequired()) return true;
+  if (!providedToken) return false;
+
+  const expected = Buffer.from(JIMA_ACCESS_TOKEN);
+  const actual = Buffer.from(providedToken);
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+}
+
+function requireJimaAccessToken(req, res, next) {
+  if (isValidJimaAccessToken(getRequestAccessToken(req))) {
+    return next();
+  }
+
+  return res.status(401).json({
+    ok: false,
+    error: "Unauthorized Jima backend request."
+  });
+}
+
+app.get("/health", (req, res) => {
+  const providedToken = getRequestAccessToken(req);
+  if (providedToken && !isValidJimaAccessToken(providedToken)) {
+    return res.status(401).json({
+      ok: false,
+      error: "Unauthorized Jima backend request.",
+      authRequired: true
+    });
+  }
+
   res.json({
     ok: true,
-    service: "jima-backend"
+    service: "jima-backend",
+    authRequired: isJimaAuthRequired()
   });
 });
 
@@ -134,7 +174,7 @@ function getOpenAIErrorMessage(error, fallback) {
   return fallback;
 }
 
-app.post("/api/jima/analyze-context", async (req, res) => {
+app.post("/api/jima/analyze-context", requireJimaAccessToken, async (req, res) => {
   const validationError = validateAnalyzePayload(req.body);
   if (validationError) {
     return res.status(400).json({
@@ -165,7 +205,7 @@ app.post("/api/jima/analyze-context", async (req, res) => {
   }
 });
 
-app.post("/api/jima/analyze-file", (req, res) => {
+app.post("/api/jima/analyze-file", requireJimaAccessToken, (req, res) => {
   upload.single("file")(req, res, async (uploadError) => {
     if (uploadError) {
       if (uploadError instanceof multer.MulterError && uploadError.code === "LIMIT_FILE_SIZE") {
@@ -258,4 +298,7 @@ app.use((error, _req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Jima backend listening on http://localhost:${PORT}`);
+  if (!isJimaAuthRequired()) {
+    console.warn("JIMA_ACCESS_TOKEN is not set. Backend is open; use only for local development.");
+  }
 });
