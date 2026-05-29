@@ -11,6 +11,7 @@ const chatSendBtn = document.getElementById("chatSendBtn");
 const chatModeToggle = document.getElementById("chatModeToggle");
 const chatModeStatus = document.getElementById("chatModeStatus");
 const suggestedActions = document.querySelector(".suggested-actions");
+const composerDock = document.querySelector(".composer-dock");
 const evidenceDetails = document.getElementById("evidenceDetails");
 const analyzePageBtn = document.getElementById("analyzePageBtn");
 const statusMessage = document.getElementById("statusMessage");
@@ -86,6 +87,7 @@ const JIMA_FILE_ANALYSIS_URL = "http://localhost:3000/api/jima/analyze-file";
 const JIMA_FILE_ANALYSIS_MAX_BYTES = 10 * 1024 * 1024;
 const JIMA_FILE_ANALYSIS_TIMEOUT_MS = 60000;
 const JIMA_FILE_ANALYSIS_TYPES = new Set(["txt", "pdf", "docx"]);
+const JIMA_NOTICE_DEDUPE_MS = 30000;
 
 let latestPageContext = null;
 let latestDetections = null;
@@ -105,6 +107,7 @@ let jimaToolRegistry = null;
 let pendingAiConfirmation = false;
 let selectedAnalysisFile = null;
 const jimaChatHistory = [];
+const jimaNoticeCache = new Map();
 
 const jimaSessionMemory = {
   latestAnalyzedCoursePageContext: null,
@@ -269,6 +272,17 @@ function appendLinkRow(listEl, link) {
 
 function addChatMessage(role, text, actions = [], type = "text") {
   if (!chatMessages || !text) return null;
+  const noticeKey = getChatNoticeKey(role, text, type);
+  if (noticeKey) {
+    const cached = jimaNoticeCache.get(noticeKey);
+    if (cached?.element?.isConnected && Date.now() - cached.updatedAt < JIMA_NOTICE_DEDUPE_MS) {
+      cached.updatedAt = Date.now();
+      cached.element.classList.add("is-refreshed");
+      scrollChatToLatest(cached.element);
+      return cached.element;
+    }
+  }
+
   const messageModel = globalThis.JimaChatV2?.createMessage
     ? globalThis.JimaChatV2.createMessage({
       role: role === "assistant" ? "jima" : role,
@@ -287,9 +301,21 @@ function addChatMessage(role, text, actions = [], type = "text") {
   jimaChatHistory.push(messageModel);
 
   const message = document.createElement("div");
-  message.className = `chat-message ${role === "user" ? "user" : "assistant"} ${messageModel.type}`;
+  const roleClass = role === "user" ? "user" : role === "system" ? "system" : "assistant";
+  message.className = `chat-message ${roleClass} ${messageModel.type}`;
   message.dataset.messageId = messageModel.id;
+  if (noticeKey) message.dataset.noticeKey = noticeKey;
+  if (roleClass === "assistant") {
+    const avatar = document.createElement("img");
+    avatar.className = "message-avatar";
+    avatar.src = "../../assets/icons/jima-avatar.png";
+    avatar.alt = "";
+    avatar.setAttribute("aria-hidden", "true");
+    message.appendChild(avatar);
+  }
+
   const body = document.createElement("div");
+  body.className = "chat-message-body";
   body.textContent = messageModel.text;
   message.appendChild(body);
 
@@ -309,12 +335,44 @@ function addChatMessage(role, text, actions = [], type = "text") {
       actionRow.appendChild(button);
     }
 
-    message.appendChild(actionRow);
+    body.appendChild(actionRow);
   }
 
   chatMessages.appendChild(message);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (noticeKey) {
+    jimaNoticeCache.set(noticeKey, {
+      element: message,
+      updatedAt: Date.now()
+    });
+  }
+  scrollChatToLatest(message);
   return message;
+}
+
+function getChatNoticeKey(role, text, type) {
+  if (role !== "assistant") return "";
+  const normalized = normalizeChatText(text);
+  const isNotice = (
+    type === "error" ||
+    type === "confirmation" ||
+    /backend|openai_api_key|api key|moodle page|choose .*file|unsupported file|too large|already waiting|no file|could not reach|not running|quota|billing|invalid response/.test(normalized)
+  );
+  return isNotice ? `${type}:${normalized.slice(0, 180)}` : "";
+}
+
+function scrollChatToLatest(target = null) {
+  if (!chatMessages) return;
+  const activeElement = document.activeElement;
+  const userIsSelectingFile = Boolean(fileAnalysisDetails && activeElement && fileAnalysisDetails.contains(activeElement));
+  if (userIsSelectingFile) return;
+
+  window.requestAnimationFrame(() => {
+    if (target?.scrollIntoView) {
+      target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      return;
+    }
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
 }
 
 function normalizeChatText(value) {
@@ -1659,10 +1717,45 @@ function validateSelectedAnalysisFile(file) {
   }
 
   if (file.size > JIMA_FILE_ANALYSIS_MAX_BYTES) {
-    return "This file is too large. Phase 10A supports files up to 10MB.";
+    return "This file is too large. Jima supports selected files up to 10MB.";
   }
 
   return "";
+}
+
+function formatJimaBackendError(message, fallback = "Jima could not complete that request.") {
+  const text = String(message || "").trim();
+  const normalized = text.toLowerCase();
+
+  if (!text || /failed to fetch|offline|unreachable|networkerror|load failed|could not connect/.test(normalized)) {
+    return "The local Jima backend is not running. Start it with cd backend && npm start.";
+  }
+
+  if (/openai_api_key|api key|not configured|not set/.test(normalized)) {
+    return "The backend is running, but OPENAI_API_KEY is not configured.";
+  }
+
+  if (/quota|billing|insufficient_quota|rate limit|429/.test(normalized)) {
+    return "OpenAI returned a quota or billing error. Check the backend OpenAI account, then try again.";
+  }
+
+  if (/invalid response|malformed|structured|json/.test(normalized)) {
+    return "The local Jima backend returned an invalid response. Restart it and try again.";
+  }
+
+  if (/unsupported file/.test(normalized)) {
+    return "This file type is not supported yet. Try PDF, DOCX, or TXT.";
+  }
+
+  if (/too large|10mb/.test(normalized)) {
+    return "This file is too large. Jima supports selected files up to 10MB.";
+  }
+
+  if (/extract enough readable text|empty extraction|no readable/.test(normalized)) {
+    return "I could not extract enough readable text from this file. It may be scanned or image-based.";
+  }
+
+  return text || fallback;
 }
 
 function updateFileAnalysisButtonState() {
@@ -1726,8 +1819,22 @@ async function analyzeSelectedLocalFile() {
     });
     const body = await response.json().catch(() => null);
 
+    if (!body || typeof body !== "object") {
+      const errorMessage = formatJimaBackendError("invalid response");
+      setFileAnalysisStatus(errorMessage, "error");
+      addChatMessage("assistant", errorMessage, [], "error");
+      return;
+    }
+
     if (!response.ok || body?.ok === false) {
-      const errorMessage = body?.error || "Jima could not analyze this selected file.";
+      const errorMessage = formatJimaBackendError(body?.error, "Jima could not analyze this selected file.");
+      setFileAnalysisStatus(errorMessage, "error");
+      addChatMessage("assistant", errorMessage, [], "error");
+      return;
+    }
+
+    if (!body.analysis) {
+      const errorMessage = formatJimaBackendError("malformed backend response");
       setFileAnalysisStatus(errorMessage, "error");
       addChatMessage("assistant", errorMessage, [], "error");
       return;
@@ -1738,7 +1845,7 @@ async function analyzeSelectedLocalFile() {
   } catch (error) {
     const errorMessage = error?.name === "AbortError"
       ? "Jima file analysis timed out. Try a smaller file or restart the local backend."
-      : "Jima backend is offline or unreachable. Start the local backend and try again.";
+      : formatJimaBackendError(error?.message);
     setFileAnalysisStatus(errorMessage, "error");
     addChatMessage("assistant", errorMessage, [], "error");
   } finally {
@@ -2629,14 +2736,16 @@ function askJimaWithAi(questionOverride = "") {
       setAiLoading(false);
 
       if (chrome.runtime.lastError) {
-        setAiStatus(chrome.runtime.lastError.message || "Jima AI request failed.", "error");
-        addChatMessage("assistant", chrome.runtime.lastError.message || "Jima AI request failed.");
+        const errorMessage = formatJimaBackendError(chrome.runtime.lastError.message, "Jima AI request failed.");
+        setAiStatus(errorMessage, "error");
+        addChatMessage("assistant", errorMessage, [], "error");
         return;
       }
 
       if (!response?.ok) {
-        setAiStatus(response?.error || "Jima AI request failed.", "error");
-        addChatMessage("assistant", response?.error || "Jima AI request failed.");
+        const errorMessage = formatJimaBackendError(response?.error, "Jima AI request failed.");
+        setAiStatus(errorMessage, "error");
+        addChatMessage("assistant", errorMessage, [], "error");
         return;
       }
 
@@ -2903,6 +3012,17 @@ if (suggestedActions) {
   });
 }
 
+if (composerDock) {
+  composerDock.addEventListener("click", (event) => {
+    const button = event.target?.closest?.(".attach-action[data-chat-action]");
+    if (!button) return;
+
+    routeChatQuery("Analyze file").catch(() => {
+      addChatMessage("assistant", "I could not open file analysis.");
+    });
+  });
+}
+
 if (chatMessages) {
   chatMessages.addEventListener("click", (event) => {
     const button = event.target?.closest?.("[data-chat-action]");
@@ -3161,7 +3281,7 @@ updateChatMode("local");
 
 addChatMessage(
   "assistant",
-  "Hi, I am Jima. Ask me about homework, deadlines, saved courses, or Moodle files. I start in Local mode, and I will ask before using AI, opening assignment details, or downloading files."
+  "Ready when you are, Boss. Ask me about homework, deadlines, Moodle files, saved courses, or anything you want me to analyze."
 );
 
 refreshSavedTasks().catch(() => {

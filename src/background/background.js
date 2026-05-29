@@ -297,13 +297,13 @@ async function askJimaBackend(payload) {
     if (error?.name === "AbortError") {
       return {
         ok: false,
-        error: "Jima backend timed out. Make sure the local backend is running and try again."
+        error: "Jima backend timed out. Make sure the local backend is running with cd backend && npm start, then try again."
       };
     }
 
     return {
       ok: false,
-      error: "Jima backend is offline or unreachable. Start the local backend and try again."
+      error: "The local Jima backend is not running. Start it with cd backend && npm start."
     };
   } finally {
     clearTimeout(timeoutId);

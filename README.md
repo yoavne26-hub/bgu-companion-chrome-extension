@@ -31,8 +31,23 @@ BGU Companion solves those problems with a focused set of features that are desi
 - Autofills username and 9-digit student ID on supported BGU systems
 - Adds a floating save widget to supported pages so links can be saved directly from the page
 - Detects when a page is already saved and reflects that state immediately
+- Includes Jima, a chat-first student assistant for local Moodle scans, homework/date/file evidence, safe downloads, and explicit AI analysis through a local backend proxy
 
 Passwords are never stored by the extension. Chrome Password Manager remains the only password handler.
+
+---
+
+## Jima Study Dock
+
+Jima is the integrated BGU Companion student assistant. The current Study Dock UI is a chat-first side panel designed around explicit user action and evidence-based answers:
+
+- Local mode can scan the currently visible BGU Moodle page, find possible homework/date/file evidence, resolve saved courses, and inspect one selected assignment detail page.
+- File handling stays controlled: Jima can match files such as `lecture 5`, open Moodle file links, and start downloads only after confirmation.
+- File-content analysis is explicit: the user manually chooses or drops a local TXT, PDF, or DOCX file, then clicks `Analyze file`.
+- AI mode uses the local backend proxy only after confirmation. OpenAI API keys stay in `backend/.env`, never in extension files.
+- Jima does not silently send Moodle content, read downloaded files by filename, fetch Moodle files, or claim file contents were read unless extracted text was actually provided.
+
+The QA checklist for Jima is in `docs/JIMA_QA_CHECKLIST.md`.
 
 ---
 

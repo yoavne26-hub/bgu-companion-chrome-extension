@@ -73,6 +73,26 @@ function validateAnalyzePayload(body) {
   return "";
 }
 
+function getOpenAIErrorMessage(error, fallback) {
+  const status = Number(error?.status || error?.statusCode || 0);
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+
+  if (status === 401 || /invalid.*api.*key|authentication/.test(message)) {
+    return "OpenAI rejected the backend API key. Check OPENAI_API_KEY in backend/.env.";
+  }
+
+  if (status === 429 || code.includes("quota") || /quota|billing|rate limit|insufficient_quota/.test(message)) {
+    return "OpenAI quota or billing issue. Check the backend OpenAI account, then try again.";
+  }
+
+  if (/json|schema|structured/.test(message)) {
+    return "OpenAI returned an invalid structured response. Try again.";
+  }
+
+  return fallback;
+}
+
 app.post("/api/jima/analyze-context", async (req, res) => {
   const validationError = validateAnalyzePayload(req.body);
   if (validationError) {
@@ -99,7 +119,7 @@ app.post("/api/jima/analyze-context", async (req, res) => {
     console.error("Jima OpenAI analysis failed:", error?.message || error);
     return res.status(502).json({
       ok: false,
-      error: "Jima analysis failed. Please try again later."
+      error: getOpenAIErrorMessage(error, "Jima analysis failed. Please try again later.")
     });
   }
 });
@@ -162,7 +182,7 @@ app.post("/api/jima/analyze-file", (req, res) => {
       console.error("Jima file analysis failed:", error?.message || error);
       return res.status(502).json({
         ok: false,
-        error: "Jima file analysis failed. Please try again later."
+        error: getOpenAIErrorMessage(error, "Jima file analysis failed. Please try again later.")
       });
     }
   });

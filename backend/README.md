@@ -21,6 +21,8 @@ The prompt emphasizes:
 
 The Chrome Extension sends Moodle page context to this backend only after explicit user action. Local detection still works without the backend.
 
+For end-to-end release checks, use the Jima QA checklist at `../docs/JIMA_QA_CHECKLIST.md`.
+
 ## Setup
 
 Install dependencies:

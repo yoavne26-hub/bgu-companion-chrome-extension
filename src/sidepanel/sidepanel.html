@@ -8,25 +8,16 @@
 </head>
 <body>
   <main class="sidepanel-shell">
-    <section class="hero-card">
-      <div class="brand-mark" aria-hidden="true">J</div>
-      <div>
-        <h1>Jima</h1>
-        <p class="subtitle">BGU Companion Student Assistant</p>
-      </div>
-    </section>
-
-    <section class="content-card">
-      <section class="chat-panel" aria-labelledby="chatTitle">
-        <div class="chat-heading">
-          <div>
-            <h2 id="chatTitle">Chat with Jima</h2>
-            <p>Ask naturally. Jima will choose a safe local tool, or ask before using AI.</p>
-          </div>
+    <section class="hero-card" aria-label="Jima Study Dock">
+      <div class="assistant-identity">
+        <img class="jima-avatar" src="../../assets/icons/jima-avatar.png" alt="Jima avatar" />
+        <div>
+          <h1>Jima</h1>
+          <p class="subtitle">BGU Companion Student Assistant</p>
         </div>
-
-        <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
-
+      </div>
+      <div class="header-controls">
+        <span class="local-first-pill" aria-label="Local first status">Local first</span>
         <div class="mode-row" aria-label="Jima response mode">
           <div id="chatModeToggle" class="mode-toggle" role="group" aria-label="Jima mode">
             <button class="mode-option is-active" type="button" data-mode="local" aria-pressed="true">Local</button>
@@ -34,26 +25,19 @@
           </div>
           <p id="chatModeStatus" class="mode-status">Local mode uses only visible page evidence and extension rules.</p>
         </div>
+      </div>
+    </section>
 
-        <div class="suggested-actions" aria-label="Suggested actions">
-          <button class="suggested-chip" type="button" data-chat-action="currentPage">Current page</button>
-          <button class="suggested-chip" type="button" data-chat-action="savedCourse">Saved course</button>
-          <button class="suggested-chip" type="button" data-chat-action="files">Files</button>
-          <button class="suggested-chip" type="button" data-chat-action="analyzeFile">Analyze file</button>
-          <button class="suggested-chip" type="button" data-chat-action="homework">Homework</button>
-          <button class="suggested-chip" type="button" data-chat-action="ai">Analyze with AI</button>
+    <section class="content-card">
+      <section class="chat-panel" aria-labelledby="chatTitle">
+        <div class="chat-heading">
+          <div>
+            <h2 id="chatTitle">Study Dock</h2>
+            <p>Ask naturally. Jima chooses safe local tools first and asks before using AI.</p>
+          </div>
         </div>
 
-        <div class="chat-compose">
-          <textarea
-            id="chatInput"
-            rows="2"
-            placeholder="Ask Jima, e.g. Do I have homework in Finance?"
-            aria-label="Ask Jima"
-            autocomplete="off"
-          ></textarea>
-          <button id="chatSendBtn" class="primary-action" type="button">Send</button>
-        </div>
+        <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
 
         <div id="chatActionArea" class="chat-action-area">
           <div id="followupResults" class="followup-results" hidden>
@@ -114,6 +98,31 @@
             </p>
             <div id="fileAnalysisStatus" class="status-message compact" role="status" aria-live="polite"></div>
           </section>
+        </div>
+
+        <div class="composer-dock">
+          <div class="suggested-actions" aria-label="Suggested actions">
+            <button class="suggested-chip" type="button" data-chat-action="currentPage">Current page</button>
+            <button class="suggested-chip" type="button" data-chat-action="savedCourse">Saved course</button>
+            <button class="suggested-chip" type="button" data-chat-action="homework">Homework</button>
+            <button class="suggested-chip" type="button" data-chat-action="files">Files</button>
+            <button class="suggested-chip" type="button" data-chat-action="analyzeFile">Analyze file</button>
+            <button class="suggested-chip" type="button" data-chat-action="ai">Ask with AI</button>
+          </div>
+
+          <div class="chat-compose">
+            <button class="attach-action" type="button" data-chat-action="analyzeFile" aria-label="Attach file for analysis">
+              <span aria-hidden="true">+</span>
+            </button>
+            <textarea
+              id="chatInput"
+              rows="2"
+              placeholder="Ask anything about your studies..."
+              aria-label="Ask Jima"
+              autocomplete="off"
+            ></textarea>
+            <button id="chatSendBtn" class="primary-action send-action" type="button">Send</button>
+          </div>
         </div>
       </section>
 
