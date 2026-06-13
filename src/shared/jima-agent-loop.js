@@ -25,7 +25,7 @@ async function runJimaAgentLoop({
 
     thread.push({
       role: "assistant",
-      content: message?.content || "",
+      content: message?.content ?? null,
       ...(toolCalls.length ? { tool_calls: toolCalls } : {})
     });
 
@@ -35,7 +35,8 @@ async function runJimaAgentLoop({
       return { thread, stopped: false };
     }
 
-    for (const call of toolCalls) {
+    for (let i = 0; i < toolCalls.length; i += 1) {
+      const call = toolCalls[i];
       const name = call?.function?.name || "unknown_tool";
       let args = {};
       try {
@@ -53,15 +54,18 @@ async function runJimaAgentLoop({
         result = { error: String(error?.message || error) };
       }
 
+      if (result === undefined) result = { error: "Tool returned no value." };
       thread.push({
         role: "tool",
-        tool_call_id: call?.id || name,
-        content: JSON.stringify(result ?? null)
+        tool_call_id: call?.id || `${name}_${i}`,
+        content: JSON.stringify(result)
       });
     }
   }
 
-  onAssistantText("I went through several steps but stopped to avoid looping. Here's what I have so far — tell me to continue if you'd like.");
+  const stopMessage = "I went through several steps but stopped to avoid looping. Here's what I have so far — tell me to continue if you'd like.";
+  thread.push({ role: "assistant", content: stopMessage });
+  onAssistantText(stopMessage);
   return { thread, stopped: true };
 }
 

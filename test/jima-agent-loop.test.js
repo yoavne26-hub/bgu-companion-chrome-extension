@@ -3,7 +3,9 @@ const assert = require("node:assert/strict");
 const { runJimaAgentLoop } = require("../src/shared/jima-agent-loop.js");
 
 function assistant(content, toolCalls) {
-  return { role: "assistant", content: content || "", tool_calls: toolCalls };
+  const msg = { role: "assistant", content: content || "" };
+  if (toolCalls) msg.tool_calls = toolCalls;
+  return msg;
 }
 function toolCall(id, name, args) {
   return { id, type: "function", function: { name, arguments: JSON.stringify(args) } };
@@ -73,4 +75,21 @@ test("stops at the round cap and emits a stop message", async () => {
   assert.equal(result.stopped, true);
   assert.equal(texts.length, 1);
   assert.match(texts[0], /stopped/i);
+});
+
+test("renders narration text AND executes the tool when both are present", async () => {
+  const texts = [];
+  const calls = [];
+  const thread = [{ role: "user", content: "look it up" }];
+  let turn = 0;
+  await runJimaAgentLoop({
+    thread,
+    sendTurn: async () => (++turn === 1
+      ? assistant("Let me check the page.", [toolCall("c1", "read_page", {})])
+      : assistant("Here's what I found.")),
+    executeTool: async (n) => { calls.push(n); return { ok: true }; },
+    onAssistantText: (t) => texts.push(t)
+  });
+  assert.deepEqual(calls, ["read_page"]);
+  assert.deepEqual(texts, ["Let me check the page.", "Here's what I found."]);
 });
