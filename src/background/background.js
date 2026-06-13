@@ -6,7 +6,8 @@ const JIMA_MESSAGES = Object.freeze({
   DOWNLOAD_SELECTED_FILES: "JIMA_DOWNLOAD_SELECTED_FILES",
   OPEN_AND_ANALYZE_COURSE: "JIMA_OPEN_AND_ANALYZE_COURSE",
   INSPECT_ASSIGNMENT_DETAIL: "JIMA_INSPECT_ASSIGNMENT_DETAIL",
-  OPEN_AND_INSPECT_ASSIGNMENT: "JIMA_OPEN_AND_INSPECT_ASSIGNMENT"
+  OPEN_AND_INSPECT_ASSIGNMENT: "JIMA_OPEN_AND_INSPECT_ASSIGNMENT",
+  JIMA_CHAT: "JIMA_CHAT"
 });
 
 const JIMA_DEFAULT_BACKEND_URL = "http://localhost:3000";
@@ -667,7 +668,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "JIMA_CHAT") {
+  if (message?.type === JIMA_MESSAGES.JIMA_CHAT) {
     askJimaChatBackend(message.messages || [], message.pageSnapshot || "")
       .then(sendResponse)
       .catch(() => {
@@ -681,7 +682,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Clear a tab's persisted Jima conversation when the tab closes.
+// NOTE: the `jima_thread_` prefix MUST match JIMA_THREAD_PREFIX in
+// src/shared/jima-conversation.js. The service worker cannot import that
+// module, so the prefix is duplicated here intentionally — keep them in sync.
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (!chrome.storage?.session) return;
-  chrome.storage.session.remove(`jima_thread_${tabId}`);
+  Promise.resolve(chrome.storage.session.remove(`jima_thread_${tabId}`)).catch(() => {});
 });
