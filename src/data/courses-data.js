@@ -28,5 +28,12 @@ globalThis.DEFAULT_COURSES = {
   "חדוא 2": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54008",
   "גרפיקה הנדסית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=54010",
   "דיסקרטית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=51130",
-  "מבוא לחשבונאות פיננסית וניהולית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49107"
+  "מבוא לחשבונאות פיננסית וניהולית": "https://moodle.bgu.ac.il/moodle/course/view.php?id=49107",
+  "אוטומציה / automation": "https://moodle.bgu.ac.il/moodle/course/view.php?id=63443",
+  "iot / אינטרנט": "https://moodle.bgu.ac.il/moodle/course/view.php?id=64661",
+  "איכות / quality": "https://moodle.bgu.ac.il/moodle/course/view.php?id=64662",
+  "מימון / finance": "https://moodle.bgu.ac.il/moodle/course/view.php?id=65670",
+  "פרויקטים / projects": "https://moodle.bgu.ac.il/moodle/course/view.php?id=63518",
+  "גמר / finals": "https://moodle.bgu.ac.il/moodle/course/view.php?id=16797",
+  "רובוטיקה קוגנטיבית / cognitive robotics": "https://moodle.bgu.ac.il/moodle/course/view.php?id=64670"
 };
