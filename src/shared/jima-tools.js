@@ -79,9 +79,9 @@ function createJimaTools(ctx = {}) {
   }
 
   async function save_task(args = {}) {
-    if (!globalThis.JimaTasks?.saveJimaTask) return { error: "Task storage is unavailable." };
+    if (!globalThis.JimaTasks?.saveTask) return { error: "Task storage is unavailable." };
     if (!args.title) return { error: "A task title is required." };
-    const result = await globalThis.JimaTasks.saveJimaTask({
+    const result = await globalThis.JimaTasks.saveTask({
       title: args.title,
       type: "possible task",
       dueDateRaw: args.dueDate || "",
@@ -97,8 +97,8 @@ function createJimaTools(ctx = {}) {
   }
 
   async function list_tasks(args = {}) {
-    if (!globalThis.JimaTasks?.getJimaSavedTasks) return { error: "Task storage is unavailable." };
-    const tasks = (await globalThis.JimaTasks.getJimaSavedTasks()) || [];
+    if (!globalThis.JimaTasks?.getTasks) return { error: "Task storage is unavailable." };
+    const tasks = (await globalThis.JimaTasks.getTasks()) || [];
     const status = args.status || "all";
     const filtered = status === "all" ? tasks : tasks.filter((t) => (t.status || "open") === status);
     return { tasks: filtered };
@@ -108,10 +108,10 @@ function createJimaTools(ctx = {}) {
     if (!globalThis.JimaTasks) return { error: "Task storage is unavailable." };
     if (!args.taskId) return { error: "A taskId is required." };
     if (args.action === "delete") {
-      await globalThis.JimaTasks.deleteJimaTask(args.taskId);
+      await globalThis.JimaTasks.deleteTask(args.taskId);
       return { updated: true, action: "delete" };
     }
-    await globalThis.JimaTasks.updateJimaTaskStatus(args.taskId, "done");
+    await globalThis.JimaTasks.updateTaskStatus(args.taskId, "done");
     return { updated: true, action: "done" };
   }
 

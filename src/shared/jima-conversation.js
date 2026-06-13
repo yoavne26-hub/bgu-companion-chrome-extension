@@ -11,7 +11,11 @@ function threadStorageKey(tabId) {
 
 function trimThread(messages, max = JIMA_THREAD_MAX_MESSAGES) {
   if (!Array.isArray(messages) || messages.length <= max) return messages;
-  return messages.slice(messages.length - max);
+  let start = messages.length - max;
+  // Never start on an orphaned tool result — its parent assistant (with the
+  // matching tool_call_id) would have been trimmed, which OpenAI rejects.
+  while (start < messages.length && messages[start].role === "tool") start += 1;
+  return messages.slice(start);
 }
 
 async function loadThread(tabId) {

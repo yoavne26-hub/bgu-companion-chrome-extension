@@ -18,3 +18,10 @@ test("trimThread returns the array unchanged when under the cap", () => {
   const msgs = [{ role: "user", content: "a" }];
   assert.deepEqual(trimThread(msgs, 40), msgs);
 });
+
+test("trimThread does not start the slice on an orphaned tool message", () => {
+  const msgs = Array.from({ length: 41 }, (_, i) => ({ role: "user", content: String(i) }));
+  msgs[1] = { role: "tool", tool_call_id: "x", content: "{}" };
+  const trimmed = trimThread(msgs, 40);
+  assert.notEqual(trimmed[0].role, "tool");
+});
