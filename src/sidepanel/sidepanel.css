@@ -1175,11 +1175,198 @@ summary:focus-visible,
   }
 }
 
+/* ===================================================================
+   Micro-interactions — entrance + press feedback
+   =================================================================== */
+@keyframes jima-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes jima-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.hero-card { animation: jima-rise 0.4s var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)) both; }
+
+/* New chat bubbles animate in for spatial continuity */
+.chat-message {
+  animation: jima-pop 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* Tactile press feedback on the key actions */
+.send-action:active,
+.primary-action:active,
+.secondary-action:active,
+.suggested-chip:active,
+.chat-action-btn:active,
+.mode-option:active,
+.attach-action:active {
+  transform: scale(0.96);
+}
+.attach-action {
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.attach-action:hover {
+  border-color: rgba(249, 115, 22, 0.42);
+  background: #fff7ed;
+}
+
+/* ===================================================================
+   Dark mode
+   =================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c1320;
+    --bg-strong: #0a111c;
+    --surface: #131c2b;
+    --surface-soft: #1a2434;
+    --surface-blue: #15233f;
+    --surface-orange: #2a2018;
+    --text: #e8eefb;
+    --muted: #93a4bd;
+    --muted-strong: #b4c2da;
+    --border: #2a3a52;
+    --border-strong: #36496a;
+    --primary: #5b8def;
+    --primary-dark: #93b4f5;
+    --primary-light: #1e3a8a;
+    --accent: #fb923c;
+    --accent-dark: #fdba74;
+    --shadow-sm: 0 8px 20px rgba(0, 0, 0, 0.42);
+    --shadow-md: 0 18px 44px rgba(0, 0, 0, 0.52);
+    --shadow-focus: 0 0 0 3px rgba(249, 115, 22, 0.30);
+  }
+
+  html { color-scheme: dark; }
+
+  body {
+    color: var(--text);
+    background:
+      radial-gradient(circle at 16% 0%, rgba(59, 130, 246, 0.16), transparent 32%),
+      radial-gradient(circle at 98% 8%, rgba(249, 115, 22, 0.14), transparent 30%),
+      linear-gradient(180deg, #0c1320 0%, #0a111c 100%);
+  }
+
+  .hero-card {
+    border-color: var(--border-strong);
+    background:
+      linear-gradient(135deg, rgba(19, 28, 43, 0.96), rgba(16, 24, 38, 0.90)),
+      linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(249, 115, 22, 0.08));
+  }
+
+  h1 { color: var(--text); }
+
+  .local-first-pill { background: rgba(34, 197, 94, 0.12); color: #6ee7a8; border-color: rgba(34, 197, 94, 0.30); }
+
+  .chat-message { color: #dce6f7; border-color: var(--border); box-shadow: var(--shadow-sm); }
+  .chat-message.assistant { background: var(--surface); border-color: var(--border); }
+  .chat-message.user {
+    background: linear-gradient(135deg, #16264a 0%, #1b2f57 100%);
+    border-color: rgba(91, 141, 239, 0.36);
+    color: #dce8ff;
+  }
+  .chat-message.system { background: rgba(26, 36, 52, 0.72); color: var(--muted-strong); border-color: rgba(148, 163, 184, 0.22); }
+  .chat-message.confirmation { background: #241a10; border-color: rgba(249, 115, 22, 0.36); }
+  .chat-message.error { background: #2a1414; border-color: #5c2a2a; color: #fca5a5; }
+
+  .chat-action-btn,
+  .task-action-btn,
+  .quiet-action,
+  .saved-task-actions button,
+  .saved-task-actions a,
+  .suggested-chip {
+    background: var(--surface-soft);
+    color: var(--primary-dark);
+    border-color: rgba(91, 141, 239, 0.26);
+    box-shadow: none;
+  }
+  .suggested-chip:hover { background: #2a2018; color: var(--accent-dark); }
+
+  .composer-dock { background: rgba(19, 28, 43, 0.94); border-color: var(--border-strong); }
+
+  .mode-toggle { background: #1a2434; }
+  .mode-option.is-active { background: #283954; color: #cfe0ff; }
+
+  #chatInput,
+  #courseQueryInput,
+  #followupInput,
+  #aiQuestionInput,
+  #fileAnalysisQuestion {
+    background: var(--surface-soft);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  #fileAnalysisQuestion { background: var(--surface-soft); }
+
+  .attach-action { background: var(--surface-blue); color: var(--primary-dark); border-color: rgba(91, 141, 239, 0.30); }
+  .attach-action:hover { background: #2a2018; }
+
+  .secondary-action { background: var(--surface-soft); color: var(--primary-dark); border-color: rgba(91, 141, 239, 0.28); }
+
+  .secondary-details,
+  .privacy-card { background: rgba(19, 28, 43, 0.78); border-color: var(--border); }
+  .secondary-details summary { color: var(--primary-dark); }
+
+  .course-query-panel,
+  .followup-panel,
+  .ai-panel,
+  .saved-tasks-panel { background: var(--surface); border-color: var(--border); }
+
+  .preview-field,
+  .preview-section,
+  .detail-box,
+  .candidate-card,
+  .course-match-card,
+  .saved-task-card,
+  .detection-section,
+  .status-message { background: var(--surface-soft); border-color: var(--border); }
+
+  .local-note { background: #241a10; border-color: rgba(249, 115, 22, 0.28); color: #fcd9b0; }
+  .local-answer-panel { background: var(--surface); border-color: rgba(91, 141, 239, 0.30); }
+  .local-answer-panel h2 { color: var(--primary-dark); }
+
+  .local-answer-panel p,
+  .local-answer-list li,
+  .ai-text,
+  .detail-value,
+  .preview-list li,
+  .candidate-meta,
+  .candidate-evidence,
+  .saved-task-meta,
+  .saved-task-detail { color: #c2cfe4; }
+
+  .file-analysis-card { background: var(--surface); border-color: var(--border); }
+  .file-analysis-dropzone {
+    background: linear-gradient(135deg, rgba(21, 35, 63, 0.80), rgba(42, 32, 24, 0.40));
+    border-color: rgba(91, 141, 239, 0.34);
+    color: var(--text);
+  }
+  .file-analysis-dropzone:hover,
+  .file-analysis-dropzone:focus,
+  .file-analysis-dropzone:focus-within,
+  .file-analysis-dropzone.is-dragover { background: #2a2018; }
+
+  .selected-file-pill { background: var(--surface-blue); color: var(--primary-dark); border-color: rgba(91, 141, 239, 0.26); }
+
+  .status-message.is-active { background: #241a10; border-color: rgba(249, 115, 22, 0.28); color: #fcd9b0; }
+  .status-message.is-error { background: #2a1414; border-color: #5c2a2a; color: #fca5a5; }
+  .status-message.is-success { background: #15233f; border-color: rgba(91, 141, 239, 0.30); color: #bfd3ff; }
+
+  .confidence { background: #0e3550; color: #93d4f5; }
+  .confidence.medium { background: #3a2e0c; color: #facc6b; }
+  .confidence.low { background: #3a1d1d; color: #fca5a5; }
+  .task-status.open { background: #143a22; color: #6ee7a8; }
+  .task-status.done { background: #283954; color: #b4c2da; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     scroll-behavior: auto !important;
     transition: none !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
