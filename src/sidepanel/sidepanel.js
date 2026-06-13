@@ -113,6 +113,7 @@ let jimaActiveTabId = null;
 let jimaThread = [];          // OpenAI-format messages persisted per tab
 let jimaTurnInFlight = false;
 let jimaClientTools = null;
+let jimaWindowId = null;
 let jimaSavedCourses = [];     // synchronous cache of saved courses [{name,url}]
 let jimaToolRegistry = null;
 let pendingAiConfirmation = false;
@@ -536,6 +537,7 @@ function collectSavedCoursesForChat() {
 
 async function bootstrapJimaConversation() {
   jimaActiveTabId = await getJimaActiveTabId();
+  try { jimaWindowId = (await chrome.windows.getCurrent())?.id ?? null; } catch { jimaWindowId = null; }
   await loadSavedCoursesForChat();
   jimaThread = await (globalThis.JimaConversation?.loadThread(jimaActiveTabId) || Promise.resolve([]));
   if (jimaThread.length) {
@@ -543,23 +545,29 @@ async function bootstrapJimaConversation() {
   }
 }
 
+async function rebootstrapForActiveTab() {
+  await persistJimaThread();
+  jimaActiveTabId = await getJimaActiveTabId();
+  jimaThread = await (globalThis.JimaConversation?.loadThread(jimaActiveTabId) || Promise.resolve([]));
+  await loadSavedCoursesForChat();
+  if (chatMessages) chatMessages.innerHTML = "";
+  jimaChatHistory.length = 0;
+  renderThreadToChat(jimaThread);
+}
+
 async function persistJimaThread() {
   if (globalThis.JimaConversation?.saveThread) {
-    await globalThis.JimaConversation.saveThread(jimaActiveTabId, jimaThread);
+    jimaThread = await globalThis.JimaConversation.saveThread(jimaActiveTabId, jimaThread);
   }
 }
 
-function buildPageSnapshotText() {
-  // Compact awareness note injected on the first round of a turn when page access is on.
-  const ctx = latestPageContext || {};
+function buildPageSnapshotText(data) {
+  const ctx = data || {};
+  if (ctx.disabled || ctx.error) return "";
   const title = ctx.pageTitle || ctx.documentTitle || "";
-  const url = ctx.currentUrl || ctx.url || "";
+  const url = ctx.url || ctx.currentUrl || "";
   const headings = Array.isArray(ctx.headings)
-    ? ctx.headings
-      .slice(0, 8)
-      .map((heading) => (typeof heading === "string" ? heading : heading?.text || ""))
-      .filter(Boolean)
-      .join(" | ")
+    ? ctx.headings.slice(0, 8).map((h) => (typeof h === "string" ? h : h?.text || "")).filter(Boolean).join(" | ")
     : "";
   if (!title && !url && !headings) return "";
   return [`TITLE: ${title}`, `URL: ${url}`, headings ? `HEADINGS: ${headings}` : ""]
@@ -585,8 +593,9 @@ async function runJimaConversationTurn(userText) {
   addChatMessage("user", text);
   jimaThread.push({ role: "user", content: text });
 
+  let pageSnapshotData = null;
   if (jimaUsingPage) {
-    try { await getJimaClientTools().read_page(); } catch { /* snapshot is best-effort */ }
+    try { pageSnapshotData = await getJimaClientTools().read_page(); } catch { pageSnapshotData = null; }
   }
 
   const thinking = addChatMessage("assistant", "…", [], "text");
@@ -595,7 +604,7 @@ async function runJimaConversationTurn(userText) {
 
   const sendTurn = async (thread) => {
     const lastIsUser = thread.at(-1)?.role === "user";
-    const snapshot = jimaUsingPage && lastIsUser ? buildPageSnapshotText() : "";
+    const snapshot = jimaUsingPage && lastIsUser ? buildPageSnapshotText(pageSnapshotData) : "";
     return globalThis.JimaAssistantApi.sendChatTurn(thread, snapshot);
   };
 
@@ -623,6 +632,11 @@ async function runJimaConversationTurn(userText) {
       onToolActivity,
       maxRounds: 6
     });
+    if (!firstAssistantRendered && thinking) {
+      const body = thinking.querySelector(".chat-message-body");
+      if (body) body.textContent = "I didn't have anything to add there — could you rephrase?";
+      firstAssistantRendered = true;
+    }
   } catch (error) {
     const fallback = "I couldn't reach my backend just now. Check that the Jima backend is running, then try again.";
     if (!firstAssistantRendered && thinking) {
@@ -3353,6 +3367,14 @@ initializeJimaToolRegistry();
 
 setPageAccess(true);
 bootstrapJimaConversation().catch((error) => console.warn("Jima bootstrap failed:", error?.message || error));
+
+if (chrome.tabs?.onActivated) {
+  chrome.tabs.onActivated.addListener((activeInfo) => {
+    if (jimaTurnInFlight) return;
+    if (jimaWindowId != null && activeInfo.windowId !== jimaWindowId) return;
+    rebootstrapForActiveTab().catch((error) => console.warn("Jima tab-switch reload failed:", error?.message || error));
+  });
+}
 
 if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);

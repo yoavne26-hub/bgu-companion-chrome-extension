@@ -23,9 +23,11 @@ async function loadThread(tabId) {
 }
 
 async function saveThread(tabId, messages) {
-  if (tabId == null || !globalThis.chrome?.storage?.session) return;
+  if (tabId == null || !globalThis.chrome?.storage?.session) return messages;
   const key = threadStorageKey(tabId);
-  await chrome.storage.session.set({ [key]: trimThread(messages) });
+  const trimmed = trimThread(messages);
+  await chrome.storage.session.set({ [key]: trimmed });
+  return trimmed;
 }
 
 async function clearThread(tabId) {
