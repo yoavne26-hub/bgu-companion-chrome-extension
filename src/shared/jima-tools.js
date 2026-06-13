@@ -54,7 +54,7 @@ function createJimaTools(ctx = {}) {
   }
 
   async function inspect_assignment(args = {}) {
-    if (!isUsingPage()) return { disabled: true };
+    if (!isUsingPage()) return { disabled: true, reason: "Page access is off. Turn on 'Using this page' to let Jima inspect assignments." };
     const response = await sendBackgroundMessage({
       type: "JIMA_OPEN_AND_INSPECT_ASSIGNMENT",
       assignment: { url: args.url, title: args.title || "" }
@@ -64,10 +64,13 @@ function createJimaTools(ctx = {}) {
   }
 
   async function download_files(args = {}) {
-    if (!isUsingPage()) return { disabled: true };
+    if (!isUsingPage()) return { disabled: true, reason: "Page access is off. Turn on 'Using this page' to let Jima prepare downloads." };
     const files = Array.isArray(args.files) ? args.files : [];
     if (files.length === 0) return { error: "No files were provided to download." };
-    if (typeof ctx.requestDownloadConfirm === "function") ctx.requestDownloadConfirm(files);
+    if (typeof ctx.requestDownloadConfirm !== "function") {
+      return { error: "Download confirmation UI is unavailable." };
+    }
+    ctx.requestDownloadConfirm(files);
     return {
       status: "awaiting_user_confirmation",
       message: `Proposed ${files.length} file(s) for download. The student must click the confirm button; nothing has downloaded yet.`,
@@ -77,6 +80,7 @@ function createJimaTools(ctx = {}) {
 
   async function save_task(args = {}) {
     if (!globalThis.JimaTasks?.saveJimaTask) return { error: "Task storage is unavailable." };
+    if (!args.title) return { error: "A task title is required." };
     const saved = await globalThis.JimaTasks.saveJimaTask({
       title: args.title,
       dueDate: args.dueDate || "",
@@ -89,7 +93,7 @@ function createJimaTools(ctx = {}) {
 
   async function list_tasks(args = {}) {
     if (!globalThis.JimaTasks?.getJimaSavedTasks) return { error: "Task storage is unavailable." };
-    const tasks = await globalThis.JimaTasks.getJimaSavedTasks();
+    const tasks = (await globalThis.JimaTasks.getJimaSavedTasks()) || [];
     const status = args.status || "all";
     const filtered = status === "all" ? tasks : tasks.filter((t) => (t.status || "open") === status);
     return { tasks: filtered };
@@ -97,6 +101,7 @@ function createJimaTools(ctx = {}) {
 
   async function update_task(args = {}) {
     if (!globalThis.JimaTasks) return { error: "Task storage is unavailable." };
+    if (!args.taskId) return { error: "A taskId is required." };
     if (args.action === "delete") {
       await globalThis.JimaTasks.deleteJimaTask(args.taskId);
       return { updated: true, action: "delete" };
