@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import { JIMA_SYSTEM_PROMPT } from "./jimaSystemPrompt.js";
+import { JIMA_SYSTEM_PROMPT, JIMA_CHAT_SYSTEM_PROMPT } from "./jimaSystemPrompt.js";
+import { JIMA_TOOL_SCHEMAS } from "./jimaTools.js";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_OUTPUT_TOKENS = 800;
@@ -223,4 +224,39 @@ File-analysis mode:
   });
 
   return parseStructuredOutput(response);
+}
+
+const MAX_CHAT_OUTPUT_TOKENS = 900;
+
+// Stateless conversational turn. The extension drives the agent loop and sends
+// the full conversation each call; we make exactly one OpenAI call and return
+// the raw assistant message (content + any tool_calls) for the client to act on.
+export async function chatWithJima(payload, { client } = {}) {
+  const openai = client || getOpenAIClient();
+  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+
+  const history = Array.isArray(payload.messages) ? payload.messages : [];
+  const messages = [{ role: "system", content: JIMA_CHAT_SYSTEM_PROMPT }];
+
+  if (payload.pageSnapshot) {
+    messages.push({
+      role: "system",
+      content: `Current page snapshot (for awareness; call read_page for full detail):\n${payload.pageSnapshot}`
+    });
+  }
+
+  for (const message of history) {
+    messages.push(message);
+  }
+
+  const response = await openai.chat.completions.create({
+    model,
+    temperature: 0.3,
+    max_tokens: MAX_CHAT_OUTPUT_TOKENS,
+    messages,
+    tools: JIMA_TOOL_SCHEMAS,
+    tool_choice: "auto"
+  });
+
+  return response.choices?.[0]?.message || { role: "assistant", content: "" };
 }
