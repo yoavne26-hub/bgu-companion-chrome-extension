@@ -81,14 +81,19 @@ function createJimaTools(ctx = {}) {
   async function save_task(args = {}) {
     if (!globalThis.JimaTasks?.saveJimaTask) return { error: "Task storage is unavailable." };
     if (!args.title) return { error: "A task title is required." };
-    const saved = await globalThis.JimaTasks.saveJimaTask({
+    const result = await globalThis.JimaTasks.saveJimaTask({
       title: args.title,
-      dueDate: args.dueDate || "",
+      type: "possible task",
+      dueDateRaw: args.dueDate || "",
       evidence: args.evidence || "",
       confidence: args.confidence || "low",
-      sourceUrl: args.sourceUrl || ""
+      sourceUrl: args.sourceUrl || "",
+      candidateUrl: args.sourceUrl || ""
     });
-    return { saved: true, task: saved };
+    if (result?.duplicate) {
+      return { saved: false, duplicate: true, message: "A matching task is already saved.", task: result.task };
+    }
+    return { saved: true, task: result?.task };
   }
 
   async function list_tasks(args = {}) {
