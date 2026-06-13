@@ -19,9 +19,12 @@
       <div class="header-controls">
         <span class="local-first-pill" aria-label="Local first status">Local first</span>
         <div class="mode-row" aria-label="Jima response mode">
-          <div id="chatModeToggle" class="mode-toggle" role="group" aria-label="Jima mode">
-            <button class="mode-option is-active" type="button" data-mode="local" aria-pressed="true">Local</button>
-            <button class="mode-option" type="button" data-mode="ai" aria-pressed="false">AI</button>
+          <div class="jima-controls">
+            <button id="pageAccessToggle" class="page-pill is-on" type="button" aria-pressed="true" title="Toggle whether Jima can read the current tab">
+              <span class="page-pill-dot" aria-hidden="true"></span>
+              <span id="pageAccessLabel" class="page-pill-label">Using this page</span>
+            </button>
+            <button id="newChatBtn" class="quiet-action" type="button" title="Start a new conversation for this tab">New chat</button>
           </div>
           <p id="chatModeStatus" class="mode-status">Local mode uses only visible page evidence and extension rules.</p>
         </div>
@@ -360,6 +363,10 @@
   <script src="../data/courses-data.js"></script>
   <script src="../shared/jima-tasks.js"></script>
   <script src="../shared/jima-course-resolver.js"></script>
+  <script src="../shared/jima-agent-loop.js"></script>
+  <script src="../shared/jima-conversation.js"></script>
+  <script src="../shared/assistant-api.js"></script>
+  <script src="../shared/jima-tools.js"></script>
   <script src="jima-chat-v2.js"></script>
   <script src="sidepanel.js"></script>
 </body>
