@@ -10,6 +10,9 @@ const chatInput = document.getElementById("chatInput");
 const chatSendBtn = document.getElementById("chatSendBtn");
 const chatModeToggle = document.getElementById("chatModeToggle");
 const chatModeStatus = document.getElementById("chatModeStatus");
+const pageAccessToggle = document.getElementById("pageAccessToggle");
+const pageAccessLabel = document.getElementById("pageAccessLabel");
+const newChatBtn = document.getElementById("newChatBtn");
 const suggestedActions = document.querySelector(".suggested-actions");
 const composerDock = document.querySelector(".composer-dock");
 const evidenceDetails = document.getElementById("evidenceDetails");
@@ -105,6 +108,12 @@ let latestActiveAssignmentTitle = "";
 let latestAiAnalysis = null;
 let latestCheckedCourseName = "";
 let chatMode = "local";
+let jimaUsingPage = true;
+let jimaActiveTabId = null;
+let jimaThread = [];          // OpenAI-format messages persisted per tab
+let jimaTurnInFlight = false;
+let jimaClientTools = null;
+let jimaSavedCourses = [];     // synchronous cache of saved courses [{name,url}]
 let jimaToolRegistry = null;
 let pendingAiConfirmation = false;
 let selectedAnalysisFile = null;
@@ -356,6 +365,40 @@ function addChatMessage(role, text, actions = [], type = "text") {
   return message;
 }
 
+function showDownloadConfirmChip(files) {
+  const safe = (Array.isArray(files) ? files : []).slice(0, 30);
+  if (safe.length === 0) return;
+  const label = safe.length === 1 ? `Download "${safe[0].name}"?` : `Download ${safe.length} files?`;
+  const messageEl = addChatMessage("assistant", label, [
+    { label: "Confirm download", dataset: { chatAction: "confirmAgentDownload" } }
+  ], "confirmation");
+  if (messageEl) messageEl.dataset.downloadFiles = JSON.stringify(safe);
+}
+
+function renderToolActivity(messageEl, toolName) {
+  if (!messageEl) return;
+  let row = messageEl.querySelector(".tool-activity");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "tool-activity";
+    messageEl.querySelector(".chat-message-body")?.appendChild(row);
+  }
+  const labels = {
+    read_page: "🔧 read the page",
+    list_files: "📄 listed files",
+    inspect_assignment: "🔎 inspected assignment",
+    download_files: "⬇️ prepared download",
+    save_task: "✅ saved task",
+    list_tasks: "🗂️ checked tasks",
+    update_task: "✏️ updated task",
+    list_saved_courses: "🎓 checked saved courses"
+  };
+  const chip = document.createElement("span");
+  chip.className = "tool-activity-chip";
+  chip.textContent = labels[toolName] || `🔧 ${toolName}`;
+  row.appendChild(chip);
+}
+
 function getChatNoticeKey(role, text, type) {
   if (role !== "assistant") return "";
   const normalized = normalizeChatText(text);
@@ -446,6 +489,153 @@ function buildCurrentAiContextBundle(userQuestion = "") {
       detections: strictDetections,
       userQuestion: exactQuestion
     };
+}
+
+async function getJimaActiveTabId() {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tabs[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function renderThreadToChat(thread) {
+  if (chatMessages) chatMessages.innerHTML = "";
+  jimaChatHistory.length = 0;
+  for (const message of thread) {
+    if (message.role === "user") addChatMessage("user", message.content || "");
+    else if (message.role === "assistant" && message.content) addChatMessage("assistant", message.content || "");
+    // tool + tool-call plumbing is intentionally not rendered as bubbles
+  }
+}
+
+async function loadSavedCoursesForChat() {
+  // Saved courses live in chrome.storage.local under the "courses" key as a
+  // { name: url } map (same source the popup/options use), falling back to
+  // globalThis.DEFAULT_COURSES. Pre-loaded into a synchronous cache so the
+  // list_saved_courses executor (which calls ctx.listSavedCourses() synchronously)
+  // gets a plain array, not a Promise.
+  try {
+    const data = await chrome.storage.local.get("courses");
+    const map = (data && data.courses && Object.keys(data.courses).length)
+      ? data.courses
+      : (globalThis.DEFAULT_COURSES || {});
+    jimaSavedCourses = Object.entries(map).map(([name, url]) => ({ name, url }));
+  } catch {
+    const map = globalThis.DEFAULT_COURSES || {};
+    jimaSavedCourses = Object.entries(map).map(([name, url]) => ({ name, url }));
+  }
+  return jimaSavedCourses;
+}
+
+function collectSavedCoursesForChat() {
+  // Returns the synchronously-cached saved courses as [{name,url}].
+  return jimaSavedCourses;
+}
+
+async function bootstrapJimaConversation() {
+  jimaActiveTabId = await getJimaActiveTabId();
+  await loadSavedCoursesForChat();
+  jimaThread = await (globalThis.JimaConversation?.loadThread(jimaActiveTabId) || Promise.resolve([]));
+  if (jimaThread.length) {
+    renderThreadToChat(jimaThread);
+  }
+}
+
+async function persistJimaThread() {
+  if (globalThis.JimaConversation?.saveThread) {
+    await globalThis.JimaConversation.saveThread(jimaActiveTabId, jimaThread);
+  }
+}
+
+function buildPageSnapshotText() {
+  // Compact awareness note injected on the first round of a turn when page access is on.
+  const ctx = latestPageContext || {};
+  const title = ctx.pageTitle || ctx.documentTitle || "";
+  const url = ctx.currentUrl || ctx.url || "";
+  const headings = Array.isArray(ctx.headings)
+    ? ctx.headings
+      .slice(0, 8)
+      .map((heading) => (typeof heading === "string" ? heading : heading?.text || ""))
+      .filter(Boolean)
+      .join(" | ")
+    : "";
+  if (!title && !url && !headings) return "";
+  return [`TITLE: ${title}`, `URL: ${url}`, headings ? `HEADINGS: ${headings}` : ""]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function getJimaClientTools() {
+  if (jimaClientTools) return jimaClientTools;
+  jimaClientTools = globalThis.JimaTools.create({
+    isUsingPage: () => jimaUsingPage,
+    requestDownloadConfirm: (files) => showDownloadConfirmChip(files),
+    listSavedCourses: () => collectSavedCoursesForChat()
+  });
+  return jimaClientTools;
+}
+
+async function runJimaConversationTurn(userText) {
+  const text = String(userText || "").trim();
+  if (!text || jimaTurnInFlight) return;
+  jimaTurnInFlight = true;
+
+  addChatMessage("user", text);
+  jimaThread.push({ role: "user", content: text });
+
+  if (jimaUsingPage) {
+    try { await getJimaClientTools().read_page(); } catch { /* snapshot is best-effort */ }
+  }
+
+  const thinking = addChatMessage("assistant", "…", [], "text");
+  let firstAssistantRendered = false;
+  let lastAgentMessageEl = thinking;
+
+  const sendTurn = async (thread) => {
+    const lastIsUser = thread.at(-1)?.role === "user";
+    const snapshot = jimaUsingPage && lastIsUser ? buildPageSnapshotText() : "";
+    return globalThis.JimaAssistantApi.sendChatTurn(thread, snapshot);
+  };
+
+  const onAssistantText = (assistantText) => {
+    if (!firstAssistantRendered && thinking) {
+      const body = thinking.querySelector(".chat-message-body");
+      if (body) { body.textContent = assistantText; }
+      firstAssistantRendered = true;
+      lastAgentMessageEl = thinking;
+    } else {
+      lastAgentMessageEl = addChatMessage("assistant", assistantText);
+    }
+  };
+
+  const onToolActivity = (toolName) => renderToolActivity(lastAgentMessageEl, toolName);
+
+  try {
+    await globalThis.JimaAgentLoop.runJimaAgentLoop({
+      thread: jimaThread,
+      sendTurn,
+      executeTool: (name, args) => getJimaClientTools()[name]
+        ? getJimaClientTools()[name](args)
+        : Promise.resolve({ error: `Unknown tool: ${name}` }),
+      onAssistantText,
+      onToolActivity,
+      maxRounds: 6
+    });
+  } catch (error) {
+    const fallback = "I couldn't reach my backend just now. Check that the Jima backend is running, then try again.";
+    if (!firstAssistantRendered && thinking) {
+      const body = thinking.querySelector(".chat-message-body");
+      if (body) body.textContent = fallback;
+    } else {
+      addChatMessage("assistant", fallback, [], "error");
+    }
+    console.warn("Jima turn failed:", error?.message || error);
+  } finally {
+    await persistJimaThread();
+    jimaTurnInFlight = false;
+  }
 }
 
 function getCandidateEvidenceText(candidate = {}) {
@@ -2197,9 +2387,11 @@ async function routeChatQuery(query, mirrorUser = true) {
 
 function handleChatSubmit() {
   const query = chatInput?.value.trim() || "";
+  if (!query) return;
   if (chatInput) chatInput.value = "";
-  routeChatQuery(query).catch(() => {
-    addChatMessage("assistant", "I could not handle that request locally.");
+  runJimaConversationTurn(query).catch((error) => {
+    console.warn("Jima submit failed:", error?.message || error);
+    addChatMessage("assistant", "Something went wrong handling that. Please try again.", [], "error");
   });
 }
 
@@ -3159,6 +3351,9 @@ function initializeJimaToolRegistry() {
 
 initializeJimaToolRegistry();
 
+setPageAccess(true);
+bootstrapJimaConversation().catch((error) => console.warn("Jima bootstrap failed:", error?.message || error));
+
 if (analyzePageBtn) {
   analyzePageBtn.addEventListener("click", analyzeCurrentPage);
 }
@@ -3176,17 +3371,31 @@ if (chatInput) {
   });
 }
 
-if (chatModeToggle) {
-  chatModeToggle.addEventListener("click", (event) => {
-    const button = event.target?.closest?.("[data-mode]");
-    if (!button) return;
-    updateChatMode(button.dataset.mode);
-    addChatMessage(
-      "system",
-      chatMode === "ai"
-        ? "AI mode selected. I will still ask before sending any extracted Moodle context to the configured backend."
-        : "Local mode selected. I will answer with extension-side evidence and rules only."
-    );
+function setPageAccess(on) {
+  jimaUsingPage = Boolean(on);
+  if (pageAccessToggle) {
+    pageAccessToggle.classList.toggle("is-on", jimaUsingPage);
+    pageAccessToggle.setAttribute("aria-pressed", String(jimaUsingPage));
+  }
+  if (pageAccessLabel) pageAccessLabel.textContent = jimaUsingPage ? "Using this page" : "Page access off";
+  if (chatModeStatus) {
+    chatModeStatus.textContent = jimaUsingPage
+      ? "Jima can read the current tab to answer about this page."
+      : "Page access is off. Jima will chat but cannot read this tab.";
+  }
+}
+
+if (pageAccessToggle) {
+  pageAccessToggle.addEventListener("click", () => setPageAccess(!jimaUsingPage));
+}
+
+if (newChatBtn) {
+  newChatBtn.addEventListener("click", async () => {
+    jimaThread = [];
+    if (globalThis.JimaConversation?.clearThread) await globalThis.JimaConversation.clearThread(jimaActiveTabId);
+    if (chatMessages) chatMessages.innerHTML = "";
+    jimaChatHistory.length = 0;
+    addChatMessage("system", "Started a new conversation for this tab.");
   });
 }
 
@@ -3204,8 +3413,8 @@ if (suggestedActions) {
       analyzeFile: "Analyze file",
       ai: "Ask Jima with AI"
     };
-    routeChatQuery(prompts[action] || button.textContent || "").catch(() => {
-      addChatMessage("assistant", "I could not handle that request locally.");
+    runJimaConversationTurn(prompts[action] || button.textContent || "").catch(() => {
+      addChatMessage("assistant", "Something went wrong handling that. Please try again.", [], "error");
     });
   });
 }
@@ -3227,6 +3436,26 @@ if (chatMessages) {
     if (!button) return;
 
     const action = button.dataset.chatAction;
+    if (action === "confirmAgentDownload") {
+      const host = button.closest("[data-download-files]");
+      let files = [];
+      try { files = JSON.parse(host?.dataset.downloadFiles || "[]"); } catch { files = []; }
+      chrome.runtime.sendMessage(
+        { type: "JIMA_DOWNLOAD_SELECTED_FILES", files },
+        (response) => {
+          const started = response?.summary?.started || 0;
+          addChatMessage(
+            "assistant",
+            started > 0 ? `Started ${started} download(s).` : (response?.error || "No downloads were started."),
+            [],
+            started > 0 ? "result" : "error"
+          );
+        }
+      );
+      button.disabled = true;
+      return;
+    }
+
     if (action === "confirmAi") {
       runJimaTool("askAiWithContext", { question: aiQuestionInput?.value.trim() || "" });
       return;
