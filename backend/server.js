@@ -5,7 +5,8 @@ import express from "express";
 import multer from "multer";
 import path from "node:path";
 import { extractFileText } from "./fileTextExtractor.js";
-import { analyzeJimaContext, analyzeJimaFileText } from "./openaiClient.js";
+import { analyzeJimaContext, analyzeJimaFileText, chatWithJima } from "./openaiClient.js";
+import { validateChatPayload } from "./chatPayload.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -234,6 +235,31 @@ app.post("/api/jima/analyze-context", requireJimaAccessToken, async (req, res) =
     return res.status(502).json({
       ok: false,
       error: getOpenAIErrorMessage(error, "Jima analysis failed. Please try again later.")
+    });
+  }
+});
+
+app.post("/api/jima/chat", requireJimaAccessToken, async (req, res) => {
+  const validationError = validateChatPayload(req.body);
+  if (validationError) {
+    return res.status(400).json({ ok: false, error: validationError });
+  }
+
+  try {
+    const message = await chatWithJima(req.body);
+    return res.json({ ok: true, message });
+  } catch (error) {
+    if (error?.code === "MISSING_OPENAI_API_KEY") {
+      return res.status(500).json({
+        ok: false,
+        error: "Backend configuration error: OPENAI_API_KEY is not set."
+      });
+    }
+
+    console.error("Jima chat failed:", error?.message || error);
+    return res.status(502).json({
+      ok: false,
+      error: getOpenAIErrorMessage(error, "Jima could not answer right now. Please try again.")
     });
   }
 });
