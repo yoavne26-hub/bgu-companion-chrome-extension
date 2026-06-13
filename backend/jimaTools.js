@@ -85,7 +85,7 @@ export const JIMA_TOOL_SCHEMAS = [
     type: "function",
     function: {
       name: "list_tasks",
-      description: "List the student's saved tasks. Optionally filter by status.",
+      description: "List the student's saved tasks. Optionally filter by status; defaults to all when omitted.",
       parameters: {
         type: "object",
         properties: { status: { type: "string", enum: ["open", "done", "all"] } },
