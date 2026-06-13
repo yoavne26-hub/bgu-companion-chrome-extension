@@ -381,6 +381,52 @@ async function askJimaBackend(payload) {
   }
 }
 
+async function askJimaChatBackend(messages, pageSnapshot) {
+  const config = await getJimaBackendConfig();
+  if (!config.ok) {
+    return { ok: false, error: config.error || "Configure the Jima backend URL in Options." };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), JIMA_BACKEND_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(buildJimaBackendUrl(config, "/api/jima/chat"), {
+      method: "POST",
+      headers: getJimaBackendHeaders(config, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ messages, pageSnapshot: pageSnapshot || "" }),
+      signal: controller.signal
+    });
+
+    let body = null;
+    try {
+      body = await response.json();
+    } catch {
+      return { ok: false, error: "Jima backend returned an invalid response." };
+    }
+
+    if (!response.ok || body?.ok === false) {
+      if (response.status === 401 || response.status === 403) {
+        return { ok: false, error: "Jima backend rejected the request. Check the backend access token in Options." };
+      }
+      return { ok: false, error: body?.error || "Jima backend could not answer." };
+    }
+
+    if (!body?.message) {
+      return { ok: false, error: "Jima backend response did not include a message." };
+    }
+
+    return { ok: true, message: body.message };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return { ok: false, error: "Jima backend timed out. Check the backend URL or whether the service is running." };
+    }
+    return { ok: false, error: "Jima backend is unreachable. Check the backend URL or whether the service is running." };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function validateJimaDownloadFile(file) {
   const name = String(file?.name || "Moodle file").slice(0, 160);
   const rawUrl = String(file?.url || "").trim();
@@ -621,5 +667,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "JIMA_CHAT") {
+    askJimaChatBackend(message.messages || [], message.pageSnapshot || "")
+      .then(sendResponse)
+      .catch(() => {
+        sendResponse({ ok: false, error: "Jima chat request failed." });
+      });
+
+    return true;
+  }
+
   return false;
+});
+
+// Clear a tab's persisted Jima conversation when the tab closes.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (!chrome.storage?.session) return;
+  chrome.storage.session.remove(`jima_thread_${tabId}`);
 });
