@@ -226,7 +226,7 @@ File-analysis mode:
   return parseStructuredOutput(response);
 }
 
-const MAX_CHAT_OUTPUT_TOKENS = 900;
+const MAX_CHAT_OUTPUT_TOKENS = Number(process.env.JIMA_MAX_OUTPUT_TOKENS) || 900;
 
 // Stateless conversational turn. The extension drives the agent loop and sends
 // the full conversation each call; we make exactly one OpenAI call and return
