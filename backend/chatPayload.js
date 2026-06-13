@@ -1,6 +1,6 @@
-const MAX_BODY_BYTES = 1024 * 1024;
+export const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_MESSAGES = 60;
-const VALID_ROLES = new Set(["system", "user", "assistant", "tool"]);
+const VALID_ROLES = new Set(["user", "assistant", "tool"]);
 
 function isPlainObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);

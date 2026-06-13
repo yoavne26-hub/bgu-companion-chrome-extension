@@ -6,11 +6,10 @@ import multer from "multer";
 import path from "node:path";
 import { extractFileText } from "./fileTextExtractor.js";
 import { analyzeJimaContext, analyzeJimaFileText, chatWithJima } from "./openaiClient.js";
-import { validateChatPayload } from "./chatPayload.js";
+import { validateChatPayload, MAX_BODY_BYTES } from "./chatPayload.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_VISIBLE_TEXT_LENGTH = 8000;
 const MAX_ARRAY_ITEMS = 100;
