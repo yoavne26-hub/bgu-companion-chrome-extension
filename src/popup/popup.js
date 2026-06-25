@@ -45,7 +45,21 @@ function openExternal(url) {
 }
 
 function openCourse(url, name) {
-  chrome.tabs.update({ url }, () => {
+  const target =
+    typeof globalThis.migrateCourseUrl === "function"
+      ? globalThis.migrateCourseUrl(url)
+      : url;
+
+  // Remember the intended course so the content script can resume to it if
+  // Moodle bounces us to the login / landing page (e.g. an expired session
+  // after the Moodle upgrade).
+  try {
+    chrome.storage.local.set({
+      pendingCourseTarget: { url: target, name, ts: Date.now(), attempts: 0 }
+    });
+  } catch {}
+
+  chrome.tabs.update({ url: target }, () => {
     if (chrome.runtime.lastError) {
       setMessage("Could not open the course.", "error");
       return;
@@ -104,6 +118,14 @@ async function getCoursesWithSeed() {
   if (Object.keys(courses).length === 0) {
     courses = { ...globalThis.DEFAULT_COURSES };
     await setCourses(courses);
+    return courses;
+  }
+
+  // Migrate legacy (pre-2026 Moodle 4.5) course URLs and merge new defaults.
+  if (typeof globalThis.upgradeStoredCourses === "function") {
+    const { courses: upgraded, changed } = globalThis.upgradeStoredCourses(courses);
+    if (changed) await setCourses(upgraded);
+    return upgraded;
   }
 
   return courses;

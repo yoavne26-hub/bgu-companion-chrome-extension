@@ -870,6 +870,12 @@ async function getCoursesWithSeed() {
   if (Object.keys(courses).length === 0) {
     courses = { ...globalThis.DEFAULT_COURSES };
     await setCourses(courses);
+    return courses;
+  }
+  if (typeof globalThis.upgradeStoredCourses === "function") {
+    const { courses: upgraded, changed } = globalThis.upgradeStoredCourses(courses);
+    if (changed) await setCourses(upgraded);
+    return upgraded;
   }
   return courses;
 }
@@ -1473,8 +1479,101 @@ function attachSaveWidget() {
   }
 }
 
+const PENDING_COURSE_KEY = "pendingCourseTarget";
+const PENDING_COURSE_MAX_AGE_MS = 5 * 60 * 1000;
+const PENDING_COURSE_MAX_ATTEMPTS = 3;
+const MOODLE_LOGIN_PATH = "/moodle/login/index.php";
+
+function isLoggedInMoodle() {
+  const body = document.body;
+  if (body?.classList.contains("notloggedin")) return false;
+  if (body?.classList.contains("userloggedin")) return true;
+  const uid = Number(globalThis.M?.cfg?.userId || 0);
+  if (uid > 1) return true; // guest is typically 0 or 1
+  return !!document.querySelector('a[href*="/login/logout.php"]');
+}
+
+function isMoodleLandingOrLogin() {
+  const path = location.pathname;
+  return (
+    path.endsWith("/login/index.php") ||
+    path.includes("/local/mydashboard") ||
+    path === "/moodle/" ||
+    path === "/moodle"
+  );
+}
+
+// When Moodle bounces a course click to the login / landing page (e.g. an
+// expired session), resume to the originally requested course once the user
+// has authenticated. Guarded by an attempt counter to avoid redirect loops.
+async function maybeResumePendingCourse() {
+  if (location.hostname !== "moodle.bgu.ac.il" || !chrome.storage?.local) return;
+
+  let data;
+  try {
+    data = await chrome.storage.local.get(PENDING_COURSE_KEY);
+  } catch {
+    return;
+  }
+
+  const pending = data[PENDING_COURSE_KEY];
+  if (!pending || !pending.url) return;
+
+  if (Date.now() - Number(pending.ts || 0) > PENDING_COURSE_MAX_AGE_MS) {
+    chrome.storage.local.remove(PENDING_COURSE_KEY);
+    return;
+  }
+
+  const targetUrl =
+    typeof globalThis.migrateCourseUrl === "function"
+      ? globalThis.migrateCourseUrl(pending.url)
+      : pending.url;
+  const targetId = getCourseIdFromUrl(targetUrl);
+  const hereId = getCourseIdFromUrl(location.href) || getCourseIdFromPage();
+  const loggedIn = isLoggedInMoodle();
+  const onLoginPage = location.pathname.endsWith(MOODLE_LOGIN_PATH);
+
+  // Arrived at the intended course while authenticated → done.
+  if (loggedIn && targetId && String(hereId) === String(targetId)) {
+    chrome.storage.local.remove(PENDING_COURSE_KEY);
+    return;
+  }
+
+  // Loop guard: give up after a few hops rather than bouncing forever.
+  if (Number(pending.attempts || 0) >= PENDING_COURSE_MAX_ATTEMPTS) {
+    chrome.storage.local.remove(PENDING_COURSE_KEY);
+    return;
+  }
+
+  async function bumpAttemptsAndGo(destUrl) {
+    pending.attempts = Number(pending.attempts || 0) + 1;
+    try {
+      await chrome.storage.local.set({ [PENDING_COURSE_KEY]: pending });
+    } catch {}
+    location.replace(destUrl);
+  }
+
+  if (!loggedIn) {
+    // A logged-out course click lands on BGU's dead landing / "course not
+    // available" notice page. Skip it entirely and send the user straight to
+    // the login form (the username field is autofilled). pendingCourseTarget
+    // is preserved so we forward into the course right after they sign in.
+    if (!onLoginPage) {
+      await bumpAttemptsAndGo(`${location.origin}${MOODLE_LOGIN_PATH}`);
+    }
+    return;
+  }
+
+  // Authenticated but stranded on the landing / dashboard / login page →
+  // forward to the originally requested course.
+  if (isMoodleLandingOrLogin()) {
+    await bumpAttemptsAndGo(targetUrl);
+  }
+}
+
 function run() {
   scheduleAutofill();
+  maybeResumePendingCourse();
 
   if (
     location.hostname === "moodle.bgu.ac.il" ||

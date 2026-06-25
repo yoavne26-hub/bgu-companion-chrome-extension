@@ -348,6 +348,13 @@ resetJimaBackendBtn.addEventListener("click", async () => {
   if (Object.keys(courses).length === 0) {
     courses = { ...globalThis.DEFAULT_COURSES };
     await setCourses(courses);
+  } else if (typeof globalThis.upgradeStoredCourses === "function") {
+    // Migrate legacy (pre-2026 Moodle 4.5) course URLs and merge new defaults.
+    const { courses: upgraded, changed } = globalThis.upgradeStoredCourses(courses);
+    if (changed) {
+      await setCourses(upgraded);
+      courses = upgraded;
+    }
   }
   renderCourses(courses);
 

@@ -37,3 +37,49 @@ globalThis.DEFAULT_COURSES = {
   "גמר / finals": "https://moodle.bgu.ac.il/moodle/course/view.php?id=16797",
   "רובוטיקה קוגנטיבית / cognitive robotics": "https://moodle.bgu.ac.il/moodle/course/view.php?id=64670"
 };
+
+// --- Moodle URL migration -------------------------------------------------
+// As of the June 2026 Moodle 4.5 upgrade, BGU Moodle is served under a
+// "/moodle/" sub-path (M.cfg.wwwroot === "https://moodle.bgu.ac.il/moodle").
+// Links saved by older versions of the extension point at the legacy root
+// (e.g. ".../course/view.php?id=...") and now return "File not found".
+// migrateCourseUrl rewrites those legacy BGU Moodle links to the new path.
+globalThis.migrateCourseUrl = function migrateCourseUrl(url) {
+  try {
+    const parsed = new URL(url, "https://moodle.bgu.ac.il");
+    if (parsed.hostname !== "moodle.bgu.ac.il") return url;
+    if (parsed.pathname.startsWith("/moodle/") || parsed.pathname === "/moodle") {
+      return url;
+    }
+    // Only rewrite known Moodle app paths so we don't touch unrelated links.
+    if (/^\/(course|mod|local|user|grade|my|calendar|message|login|blocks|pluginfile|admin)\b/.test(parsed.pathname)) {
+      parsed.pathname = "/moodle" + parsed.pathname;
+      return parsed.toString();
+    }
+    return url;
+  } catch {
+    return url;
+  }
+};
+
+// Returns { courses, changed }. Rewrites legacy URLs and merges in any
+// curated default courses that are missing from the stored set.
+globalThis.upgradeStoredCourses = function upgradeStoredCourses(courses) {
+  const out = {};
+  let changed = false;
+
+  for (const [name, url] of Object.entries(courses || {})) {
+    const migrated = globalThis.migrateCourseUrl(url);
+    if (migrated !== url) changed = true;
+    out[name] = migrated;
+  }
+
+  for (const [name, url] of Object.entries(globalThis.DEFAULT_COURSES || {})) {
+    if (!(name in out)) {
+      out[name] = url;
+      changed = true;
+    }
+  }
+
+  return { courses: out, changed };
+};

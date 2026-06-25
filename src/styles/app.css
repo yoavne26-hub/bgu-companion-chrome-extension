@@ -63,8 +63,10 @@
 }
 
 html {
+  /* Transparent page so the popup window's own (white) background does not
+     show behind the rounded shell. On macOS Chrome renders the leftover
+     corners transparent, giving real rounded corners. */
   background: transparent;
-  border-radius: 32px;
   overflow: hidden;
   color-scheme: light dark;
 }
@@ -72,16 +74,15 @@ html {
 body {
   width: 340px;
   min-height: 280px;
+  /* Small margin gives the rounded shell room so its corners aren't clipped
+     flush against the popup window edge. */
   margin: 0;
-  padding: 0;
+  padding: 6px;
   font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   background: transparent;
   color: var(--text-soft);
-  border-radius: 32px;
-  overflow: hidden;
-  clip-path: inset(0 round 32px);
 }
 
 /* ---------- Popup shell ---------- */
@@ -91,7 +92,7 @@ body {
     linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.18) 100%),
     var(--gradient-brand);
   position: relative;
-  border-radius: 36px;
+  border-radius: 28px;
   overflow: hidden;
   border: none;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
