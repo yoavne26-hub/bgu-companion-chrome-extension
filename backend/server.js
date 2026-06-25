@@ -7,6 +7,14 @@ import path from "node:path";
 import { extractFileText } from "./fileTextExtractor.js";
 import { analyzeJimaContext, analyzeJimaFileText, chatWithJima } from "./openaiClient.js";
 import { validateChatPayload, MAX_BODY_BYTES } from "./chatPayload.js";
+import { initDb } from "./db.js";
+import {
+  normalizeUserKey,
+  listCourses,
+  upsertCourse,
+  deleteCourse,
+  replaceAllCourses
+} from "./coursesStore.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -15,7 +23,8 @@ const MAX_VISIBLE_TEXT_LENGTH = 8000;
 const MAX_ARRAY_ITEMS = 100;
 const JIMA_ACCESS_TOKEN = String(process.env.JIMA_ACCESS_TOKEN || "").trim();
 const CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"];
-const CORS_ALLOWED_HEADERS = ["Content-Type", "X-Jima-Access-Token"];
+const CORS_ALLOWED_HEADERS = ["Content-Type", "X-Jima-Access-Token", "X-BGU-User"];
+const CORS_ALLOWED_METHODS_WITH_DELETE = ["GET", "POST", "PUT", "DELETE", "OPTIONS"];
 const SUPPORTED_FILE_EXTENSIONS = new Set([".txt", ".md", ".pdf", ".docx", ".doc"]);
 const SUPPORTED_FILE_MIME_TYPES = new Set([
   "text/plain",
@@ -86,7 +95,7 @@ const corsOptions = {
 
     callback(new Error("CORS origin not allowed."));
   },
-  methods: CORS_ALLOWED_METHODS,
+  methods: CORS_ALLOWED_METHODS_WITH_DELETE,
   allowedHeaders: CORS_ALLOWED_HEADERS,
   optionsSuccessStatus: 204,
   maxAge: 86400
@@ -328,6 +337,73 @@ app.post("/api/jima/analyze-file", requireJimaAccessToken, (req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Per-user courses store (libSQL / Turso). Scoped by an opaque X-BGU-User key
+// generated and stored client-side; gated by the same access token as Jima.
+// ---------------------------------------------------------------------------
+function requireUserKey(req, res, next) {
+  const userKey = normalizeUserKey(req.get("X-BGU-User"));
+  if (!userKey) {
+    return res.status(400).json({
+      ok: false,
+      error: "Missing or invalid X-BGU-User header."
+    });
+  }
+  req.userKey = userKey;
+  return next();
+}
+
+function handleCoursesError(res, error, fallback) {
+  console.error("Courses store error:", error?.message || error);
+  return res.status(502).json({ ok: false, error: fallback });
+}
+
+app.get("/api/courses", requireJimaAccessToken, requireUserKey, async (req, res) => {
+  try {
+    const courses = await listCourses(req.userKey);
+    return res.json({ ok: true, courses });
+  } catch (error) {
+    return handleCoursesError(res, error, "Could not load your saved courses.");
+  }
+});
+
+app.post("/api/courses", requireJimaAccessToken, requireUserKey, async (req, res) => {
+  try {
+    const result = await upsertCourse(req.userKey, req.body?.name, req.body?.url);
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
+    return res.json({ ok: true, course: result.value });
+  } catch (error) {
+    return handleCoursesError(res, error, "Could not save this course.");
+  }
+});
+
+app.put("/api/courses", requireJimaAccessToken, requireUserKey, async (req, res) => {
+  try {
+    const result = await replaceAllCourses(req.userKey, req.body?.courses);
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
+    return res.json({ ok: true, count: result.count });
+  } catch (error) {
+    return handleCoursesError(res, error, "Could not sync your courses.");
+  }
+});
+
+app.delete("/api/courses", requireJimaAccessToken, requireUserKey, async (req, res) => {
+  try {
+    const name = req.query?.name ?? req.body?.name;
+    const result = await deleteCourse(req.userKey, name);
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
+    return res.json({ ok: true, removed: result.removed });
+  } catch (error) {
+    return handleCoursesError(res, error, "Could not delete this course.");
+  }
+});
+
 app.use((error, _req, res, next) => {
   if (!error) {
     return next();
@@ -360,6 +436,10 @@ app.use((error, _req, res, next) => {
     error: "Unexpected backend error."
   });
 });
+
+initDb()
+  .then(() => console.log("Courses DB ready."))
+  .catch((error) => console.error("Courses DB init failed:", error?.message || error));
 
 app.listen(PORT, () => {
   console.log(`Jima backend listening on http://localhost:${PORT}`);

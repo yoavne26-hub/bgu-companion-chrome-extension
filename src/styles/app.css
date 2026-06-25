@@ -407,7 +407,8 @@ body {
   border: 1px solid var(--border);
   transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-.results li:hover {
+.results li:hover,
+.results li.active {
   border-color: var(--accent-2);
   background: var(--surface-tint);
 }

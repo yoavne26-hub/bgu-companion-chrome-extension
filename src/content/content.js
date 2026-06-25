@@ -857,15 +857,20 @@ if (chrome.runtime?.onMessage) {
 
 
 async function getCourses() {
+  if (globalThis.CoursesStore) return globalThis.CoursesStore.getLocalCourses();
   const data = await chrome.storage.local.get(STORAGE_COURSES_KEY);
   return data[STORAGE_COURSES_KEY] || {};
 }
 
 async function setCourses(courses) {
+  if (globalThis.CoursesStore) return globalThis.CoursesStore.setLocalCourses(courses);
   await chrome.storage.local.set({ [STORAGE_COURSES_KEY]: courses });
 }
 
 async function getCoursesWithSeed() {
+  if (globalThis.CoursesStore) return globalThis.CoursesStore.getCoursesWithSeed();
+
+  // Fallback if the shared store script is unavailable.
   let courses = await getCourses();
   if (Object.keys(courses).length === 0) {
     courses = { ...globalThis.DEFAULT_COURSES };

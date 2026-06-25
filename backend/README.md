@@ -211,6 +211,36 @@ Successful responses include:
 }
 ```
 
+### Courses API (per-user saved courses)
+
+Stores each user's saved-course map in libSQL/Turso. All routes require the
+`X-Jima-Access-Token` header (when a token is configured) plus an
+`X-BGU-User` header — an opaque key the extension generates and stores once.
+
+```text
+GET    /api/courses              -> { ok, courses: { name: url, ... } }
+POST   /api/courses              body { name, url }            (add/update one)
+PUT    /api/courses              body { courses: { name:url } } (replace all)
+DELETE /api/courses?name=NAME                                  (remove one)
+```
+
+Course URLs are validated server-side: HTTPS only, host must be `*.bgu.ac.il`.
+
+Storage configuration:
+
+- Local development: leave `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` blank.
+  The backend creates a SQLite file at `backend/data/courses.db` (gitignored).
+- Production (Render): set both env vars to a Turso database so data survives
+  redeploys (Render's filesystem is ephemeral). Create one with the Turso CLI:
+
+  ```bash
+  turso db create bgu-companion
+  turso db show bgu-companion --url      # -> TURSO_DATABASE_URL
+  turso db tokens create bgu-companion   # -> TURSO_AUTH_TOKEN
+  ```
+
+The `courses` table is created automatically on startup.
+
 ## Security Notes
 
 - API keys must never be placed in Chrome Extension files.

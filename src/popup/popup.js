@@ -103,58 +103,117 @@ async function updateJimaTasksSummary() {
     : `${openCount} open`;
 }
 
-async function getCourses() {
+const resultsEl = document.getElementById("results");
+
+let coursesCache = {};
+let resultItems = [];
+let activeIndex = -1;
+
+async function getCoursesWithSeed() {
+  if (globalThis.CoursesStore) return globalThis.CoursesStore.getCoursesWithSeed();
   const data = await chrome.storage.local.get(STORAGE_KEY);
   return data[STORAGE_KEY] || {};
 }
 
-async function setCourses(courses) {
-  await chrome.storage.local.set({ [STORAGE_KEY]: courses });
-}
+// Rank matches: exact first, then prefix, then substring. Empty query lists all.
+function matchEntries(query) {
+  const entries = Object.entries(coursesCache).sort(([a], [b]) => a.localeCompare(b, "he"));
+  const q = query.trim().toLowerCase();
+  if (!q) return entries;
 
-async function getCoursesWithSeed() {
-  let courses = await getCourses();
-
-  if (Object.keys(courses).length === 0) {
-    courses = { ...globalThis.DEFAULT_COURSES };
-    await setCourses(courses);
-    return courses;
+  const exact = [];
+  const prefix = [];
+  const includes = [];
+  for (const entry of entries) {
+    const name = entry[0].toLowerCase();
+    if (name === q) exact.push(entry);
+    else if (name.startsWith(q)) prefix.push(entry);
+    else if (name.includes(q)) includes.push(entry);
   }
+  return [...exact, ...prefix, ...includes];
+}
 
-  // Migrate legacy (pre-2026 Moodle 4.5) course URLs and merge new defaults.
-  if (typeof globalThis.upgradeStoredCourses === "function") {
-    const { courses: upgraded, changed } = globalThis.upgradeStoredCourses(courses);
-    if (changed) await setCourses(upgraded);
-    return upgraded;
+function setActive(index) {
+  if (resultItems.length === 0) {
+    activeIndex = -1;
+    return;
   }
-
-  return courses;
+  activeIndex = (index + resultItems.length) % resultItems.length;
+  resultItems.forEach((item, i) => {
+    const isActive = i === activeIndex;
+    item.li.classList.toggle("active", isActive);
+    if (isActive) item.li.scrollIntoView({ block: "nearest" });
+  });
 }
 
-async function findCourse(query) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return null;
+function renderResults(query) {
+  if (!resultsEl) return;
+  const matches = matchEntries(query);
+  resultsEl.innerHTML = "";
+  resultItems = [];
 
-  const courses = await getCoursesWithSeed();
-  const entries = Object.entries(courses);
-
-  const exact = entries.find(([name]) => name.toLowerCase() === normalized);
-  if (exact) return exact;
-
-  return entries.find(([name]) => name.toLowerCase().includes(normalized)) || null;
-}
-
-async function handleSearch() {
-  const query = searchInput?.value || "";
-  const match = await findCourse(query);
-
-  if (!match) {
+  if (matches.length === 0) {
     setMessage("No matching course found.", "error");
     return;
   }
+  setMessage("");
 
-  const [name, url] = match;
-  openCourse(url, name);
+  for (const [name, url] of matches) {
+    const li = document.createElement("li");
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "course-name";
+    nameEl.textContent = name;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "פתח";
+    btn.addEventListener("click", () => openCourse(url, name));
+
+    li.appendChild(nameEl);
+    li.appendChild(btn);
+    li.addEventListener("mouseenter", () => {
+      const idx = resultItems.findIndex((item) => item.li === li);
+      if (idx >= 0) setActive(idx);
+    });
+
+    resultsEl.appendChild(li);
+    resultItems.push({ name, url, li });
+  }
+
+  setActive(0);
+}
+
+function openActiveOrFirst() {
+  const target = resultItems[activeIndex] || resultItems[0];
+  if (!target) {
+    setMessage("No matching course found.", "error");
+    return;
+  }
+  openCourse(target.url, target.name);
+}
+
+async function loadCourses() {
+  try {
+    coursesCache = await getCoursesWithSeed();
+  } catch {
+    setMessage("Storage permission missing. Add 'storage' to manifest.", "error");
+    return;
+  }
+  if (viewCourses && !viewCourses.hidden) renderResults(searchInput?.value || "");
+
+  // Best-effort backend sync; refresh the list if the set changed.
+  if (globalThis.CoursesStore?.syncFromBackend) {
+    globalThis.CoursesStore
+      .syncFromBackend()
+      .then((synced) => {
+        if (synced && typeof synced === "object") {
+          coursesCache = synced;
+          if (viewCourses && !viewCourses.hidden) renderResults(searchInput?.value || "");
+        }
+      })
+      .catch(() => {});
+  }
 }
 
 if (btnSettings) {
@@ -165,14 +224,21 @@ if (btnSettings) {
 }
 
 if (searchBtn) {
-  searchBtn.addEventListener("click", () => handleSearch());
+  searchBtn.addEventListener("click", () => openActiveOrFirst());
 }
 
 if (searchInput) {
+  searchInput.addEventListener("input", () => renderResults(searchInput.value || ""));
   searchInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    if (event.key === "ArrowDown") {
       event.preventDefault();
-      handleSearch();
+      setActive(activeIndex + 1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActive(activeIndex - 1);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      openActiveOrFirst();
     }
   });
 }
@@ -181,6 +247,7 @@ if (btnCourses) {
   btnCourses.addEventListener("click", () => {
     setMessage("");
     setView("courses");
+    renderResults(searchInput?.value || "");
   });
 }
 
@@ -213,9 +280,7 @@ if (btnPortal) {
 
 setView("main");
 
-getCoursesWithSeed().catch(() => {
-  setMessage("Storage permission missing. Add 'storage' to manifest.", "error");
-});
+loadCourses();
 
 updateJimaTasksSummary().catch(() => {
   if (jimaTasksSummary) {

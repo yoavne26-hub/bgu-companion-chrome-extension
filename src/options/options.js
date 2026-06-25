@@ -13,6 +13,7 @@ const DEFAULT_PROFILE = Object.freeze({
 const courseName = document.getElementById("courseName");
 const courseUrl = document.getElementById("courseUrl");
 const addCourseBtn = document.getElementById("addCourseBtn");
+const resyncDefaultsBtn = document.getElementById("resyncDefaultsBtn");
 const statusEl = document.getElementById("status");
 const courseTableBody = document.getElementById("courseTableBody");
 
@@ -55,11 +56,13 @@ function isValidStudentId(id) {
 }
 
 async function getCourses() {
+  if (globalThis.CoursesStore) return globalThis.CoursesStore.getLocalCourses();
   const data = await chrome.storage.local.get(STORAGE_COURSES_KEY);
   return data[STORAGE_COURSES_KEY] || {};
 }
 
 async function setCourses(courses) {
+  if (globalThis.CoursesStore) return globalThis.CoursesStore.setLocalCourses(courses);
   await chrome.storage.local.set({ [STORAGE_COURSES_KEY]: courses });
 }
 
@@ -267,9 +270,14 @@ function renderCourses(courses) {
     del.className = "small-btn";
     del.textContent = "Delete";
     del.addEventListener("click", async () => {
-      const updated = await getCourses();
-      delete updated[name];
-      await setCourses(updated);
+      let updated;
+      if (globalThis.CoursesStore) {
+        updated = await globalThis.CoursesStore.removeCourse(name);
+      } else {
+        updated = await getCourses();
+        delete updated[name];
+        await setCourses(updated);
+      }
       renderCourses(updated);
       setStatus(statusEl, `Deleted "${name}"`, "success");
     });
@@ -290,15 +298,46 @@ addCourseBtn.addEventListener("click", async () => {
   if (!name) return setStatus(statusEl, "Please enter a course name.", "error");
   if (!isValidUrl(url)) return setStatus(statusEl, "Please enter a valid URL.", "error");
 
-  const courses = await getCourses();
-  courses[name] = url;
-  await setCourses(courses);
+  let courses;
+  if (globalThis.CoursesStore) {
+    courses = await globalThis.CoursesStore.saveCourse(name, url);
+  } else {
+    courses = await getCourses();
+    courses[name] = url;
+    await setCourses(courses);
+  }
 
   courseName.value = "";
   courseUrl.value = "";
   renderCourses(courses);
   setStatus(statusEl, `Saved "${name}"`, "success");
 });
+
+if (resyncDefaultsBtn) {
+  resyncDefaultsBtn.addEventListener("click", async () => {
+    const current = await getCourses();
+    const { courses: merged } =
+      typeof globalThis.upgradeStoredCourses === "function"
+        ? globalThis.upgradeStoredCourses(current)
+        : { courses: { ...globalThis.DEFAULT_COURSES, ...current } };
+
+    if (globalThis.CoursesStore) {
+      await globalThis.CoursesStore.replaceAll(merged);
+    } else {
+      await setCourses(merged);
+    }
+    renderCourses(merged);
+
+    const addedCount = Object.keys(merged).length - Object.keys(current).length;
+    setStatus(
+      statusEl,
+      addedCount > 0
+        ? `Synced defaults — added ${addedCount} course(s) and refreshed links.`
+        : "Synced — links refreshed, no new courses.",
+      "success"
+    );
+  });
+}
 
 studentIdEl.addEventListener("input", () => {
   studentIdEl.value = normalizeId(studentIdEl.value);
@@ -344,19 +383,33 @@ resetJimaBackendBtn.addEventListener("click", async () => {
 });
 
 (async function init() {
-  let courses = await getCourses();
-  if (Object.keys(courses).length === 0) {
-    courses = { ...globalThis.DEFAULT_COURSES };
-    await setCourses(courses);
-  } else if (typeof globalThis.upgradeStoredCourses === "function") {
-    // Migrate legacy (pre-2026 Moodle 4.5) course URLs and merge new defaults.
-    const { courses: upgraded, changed } = globalThis.upgradeStoredCourses(courses);
-    if (changed) {
-      await setCourses(upgraded);
-      courses = upgraded;
+  let courses;
+  if (globalThis.CoursesStore) {
+    courses = await globalThis.CoursesStore.getCoursesWithSeed();
+  } else {
+    courses = await getCourses();
+    if (Object.keys(courses).length === 0) {
+      courses = { ...globalThis.DEFAULT_COURSES };
+      await setCourses(courses);
+    } else if (typeof globalThis.upgradeStoredCourses === "function") {
+      const { courses: upgraded, changed } = globalThis.upgradeStoredCourses(courses);
+      if (changed) {
+        await setCourses(upgraded);
+        courses = upgraded;
+      }
     }
   }
   renderCourses(courses);
+
+  // Best-effort pull from the backend, then re-render if it changed the set.
+  if (globalThis.CoursesStore?.syncFromBackend) {
+    globalThis.CoursesStore
+      .syncFromBackend()
+      .then((synced) => {
+        if (synced && typeof synced === "object") renderCourses(synced);
+      })
+      .catch(() => {});
+  }
 
   const profile = await getProfile();
   usernameShortEl.value = profile.usernameShort || "";

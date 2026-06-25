@@ -39,7 +39,7 @@
         "https://bgu4u.bgu.ac.il/*",
         "https://portal.bgu.ac.il/*"
       ],
-      "js": ["src/data/courses-data.js", "src/content/content.js"],
+      "js": ["src/data/courses-data.js", "src/shared/courses-store.js", "src/content/content.js"],
       "run_at": "document_idle"
     }
   ]
